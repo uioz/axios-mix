@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "declaration": true,
+    "declarationDir": "./types",
+    "outDir": "dist",
+    "module": "esnext",
+    "target": "ESNext",
+    "removeComments": true,
+    "lib": ["ESNext"]
+  },
+  "files": ["./src/index.ts"]
+}
