@@ -4,10 +4,12 @@
     "declaration": true,
     "declarationDir": "./types",
     "outDir": "dist",
-    "module": "esnext",
+    "module": "CommonJS",
     "target": "ESNext",
     "removeComments": true,
-    "lib": ["ESNext"]
+    "lib": ["ESNext"],
+    "moduleResolution": "node"
   },
-  "files": ["./src/index.ts"]
+  "files": ["./src/index.ts"],
+  "include": ["./test/*.*"]
 }
