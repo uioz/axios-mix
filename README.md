@@ -45,19 +45,72 @@ const request = AxiosMix(axios.create());
 
 ## 拦截器定义
 
-拦截器的设计于 `express` 中的中间件类似, 所有的拦截器外部定义如下:
+拦截器的设计于 `express` 中的中间件类似, 不同类型的拦截器定义如下:
 
 ```javascript
-function(config,queue,next,value){
+function(config,next,value){
   next();
 }
 ```
 
-但是不同的拦截器的参数含义和控制流程是不同的.
+- config 由 `axios-mix` 实例传入的参数, 不同拦截器传入的参数不同
+- next 调用后控制权交由下一个拦截器
+- value 由上一个拦截器通过 `next(value)` 传入的值
+
+**tips**: 参数一旦达到了 2 个这意味着这是一个异步拦截器.
+
+```javascript
+function(config,next){
+  next();
+}
+```
+
+- config 由 `axios-mix` 实例传入的参数, 不同拦截器传入的参数不同
+- next 调用后控制权交由下一个拦截器
+
+这个版本同样是异步拦截器, 但是和上一个版本不同, 它无法处理传入的数据, 但是可以基于 `next(value)` 传递数据.
+
+```javascript
+function(config){}
+```
+
+- config 由 `axios-mix` 实例传入的参数, 不同拦截器传入的参数不同
+
+这个版本的是同步拦截器, 你可以看出它没有 `next` 钩子.
+
+### 手动拦截器与拦截器队列参数
+
+拦截器是可以继承的, 这个我们稍后会解释, 简单来讲通过 `axios-mix` 实例的 `extend` 方法, 它可以复用当前 `axios-mix` 实例的配置然后生成一个新的实例, 这样做会将多个同一类型的拦截器放置到队列中执行.
+
+有时候我们不想按照 `axios-mix` 默认的执行顺序来触发拦截器, 而想手动控制拦截器的执行, 这个时候我们可以用一个对象将拦截器(函数)包裹起来:
+
+```javascript
+{
+  intercpetor:function(queue){},
+  manually:true
+}
+```
+
+这样在当前定义的 `intercpetor` 所对应的拦截器的第一个参数将会是 `queue` 它存放了当前拦截器之前的所有非手动拦截器的列表, 你可以手动执行它们.
+
+**注意**:`axios-mix` 会假设你定义的函数的首个参数是 `queue` 然后通过剩余的参数来判断你的拦截器类型.
+
+例子, 假设存在如下队列:
+
+```javascript
+[
+  function () {},
+  function () {},
+  { manually: true, intercpetor: function (queue) {} },
+  function () {},
+  function () {},
+  { manually: true, intercpetor: function (queue) {} },
+];
+```
+
+第三个手动拦截器的 `queue` 将包含第一个和第二个拦截器, 第六个手动拦截器会包含第四个和第五个拦截器.
 
 ### 前置拦截器
-
-
 
 ## 执行器
 
