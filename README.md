@@ -112,7 +112,17 @@ function(config){}
 
 ### 前置拦截器
 
-## 执行器
+```typescript
+request.get('/user',{
+  beforeRequest:function():void | Array<()=>void | { manually:boolean,intercpetor:()=>void }> | { manually:boolean,intercpetor:()=>void }
+})
+```
+
+### 后置拦截器
+
+### 局部错误拦截器
+
+### 全局错误拦截器
 
 ## extend
 
@@ -148,3 +158,5 @@ request.extend(
   }
 );
 ```
+
+## 执行器
