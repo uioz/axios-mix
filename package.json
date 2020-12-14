@@ -5,8 +5,9 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc",
+    "build:map": "tsc --sourceMap",
     "dev": "tsc -w",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node ./dist/test"
   },
   "repository": {
     "type": "git",

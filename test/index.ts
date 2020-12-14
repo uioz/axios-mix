@@ -9,10 +9,34 @@ mock.onGet("/users").reply(200, {
   users: [{ id: 1, name: "John Smith" }],
 });
 
-Axios.get("/users").then(function (response) {
-  console.log(response.data);
-});
+axios.interceptors.request.use(
+  function (config) {
+    return config;
+  },
+  function (error) {
+    console.log("request error");
+    debugger;
+  }
+);
 
-Axios("/users").then(function (response) {
+axios.interceptors.response.use(
+  function (response) {
+    debugger
+    return response;
+  },
+  function (error) {
+    console.log("response error");
+    debugger;
+  }
+);
+
+axios
+  .get("/users")
+  .then(function (response) {
+    console.log(response.data);
+  })
+  .catch(() => {});
+
+axios("/test").then(function (response) {
   console.log(response.data);
 });
