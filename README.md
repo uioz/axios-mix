@@ -377,7 +377,27 @@ request.get("/user", {
 
 ### 全局错误拦截器(errorHandler)
 
-errorHandler 和 failHandler 只有一点区别
+**建议**: 只建议在处理全局错误时候使用, 请区分局部错误拦截器和全局错误拦截器.
+
+从代码形式上看全局错误拦截器的定义和 `failHanlder` 是一样的, 这里只有一点需要牢记, 即错误默认会留在错误拦截器中, 想要打破这一点需要手动抛出错误:
+
+```javascript
+request
+  .get("/user", {
+    errorHandler: [
+      function (error) {
+        throw new Error("hello world");
+        // or
+        return Promise.reject(new Error());
+      },
+    ],
+  })
+  .catch((error) => {
+    console.log(error);
+  });
+```
+
+如果异步拦截器调用了 `next(value)` 而没有对应的接收器则该参数会作为错误抛出.
 
 ### 手动拦截器与拦截器队列参数
 
