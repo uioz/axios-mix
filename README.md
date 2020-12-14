@@ -36,7 +36,7 @@ const request = AxiosMix(axios.create());
 如果只有一个错误拦截器, 如果我们编写了第一种类型的程序, 那么第二种类型的拦截就会非常棘手, 我们只能:
 
 1. 在第一种拦截中编写大量的判断来决定是否执行全局逻辑
-2. 屏蔽掉第一种所有的拦截器, 然后针对本次请求再编写一个全局错误拦截(如果你需要全局拦截的逻辑)
+2. 屏蔽掉第一种拦截器, 然后针对本次请求定制一个错误拦截, 但是你很可能需要复用全局逻辑
 
 如果可以区分开全局副作用和局部副作用那么代码的复用就会简单许多:
 
@@ -47,36 +47,36 @@ const request = AxiosMix(axios.create());
 
 拦截器的设计于 `express` 中的中间件类似, 不同类型的拦截器定义如下:
 
-```javascript
-function(config,next,value){
-  next();
-}
-```
-
-- config 由 `axios-mix` 实例传入的参数, 不同拦截器传入的参数不同
+- config 是由 `axios-mix` 实例传入, 不同类型的拦截器所传入的值不同
 - next 调用后控制权交由下一个拦截器
 - value 由上一个拦截器通过 `next(value)` 传入的值
 
 **tips**: 参数一旦达到了 2 个这意味着这是一个异步拦截器.
 
 ```javascript
-function(config,next){
+function(config,next,value){
   next();
 }
 ```
 
+这个版本同样是异步拦截器, 但是和上一个版本不同, 它无法处理传入的数据, 但是可以基于 `next(value)` 传递数据.
+
 - config 由 `axios-mix` 实例传入的参数, 不同拦截器传入的参数不同
 - next 调用后控制权交由下一个拦截器
 
-这个版本同样是异步拦截器, 但是和上一个版本不同, 它无法处理传入的数据, 但是可以基于 `next(value)` 传递数据.
+```javascript
+function(config,next){
+  next(value);
+}
+```
+
+这个版本的是同步拦截器, 你可以看出它没有 `next` 钩子.
+
+- config 由 `axios-mix` 实例传入的参数, 不同拦截器传入的参数不同
 
 ```javascript
 function(config){}
 ```
-
-- config 由 `axios-mix` 实例传入的参数, 不同拦截器传入的参数不同
-
-这个版本的是同步拦截器, 你可以看出它没有 `next` 钩子.
 
 ## extend
 
@@ -106,7 +106,7 @@ request.extend(
 ```
 
 基于 `request.extend` 创建的实例会继承之前的拦截器, 同一个类型的拦截器会放置到一个队列中按照创建的先后顺序执行.  
-于拦截器不同的是对外暴露的接口 `retry` 和 `cache` 并不会进行继承.
+不过对外暴露的接口 `retry` 和 `cache` 并不会进行继承.
 
 ### 完整语法
 
@@ -252,7 +252,7 @@ request.get("/user", {
 
 ### 局部错误拦截器(failHandler)
 
-**提示**: 只将 failHandler 用在局部的错误处理上, 最好是只针对当前请求有效的错误拦截.
+**建议**: 只将 failHandler 用在局部的错误处理上, 最好是只针对当前请求有效的错误拦截.
 
 错误拦截器和前置后置拦截器有很多相似的地方, 首个区别就是拦截器第一个参数不同, 我们有很多类型的错误:
 
@@ -285,16 +285,18 @@ request.get("/user", {
 });
 ```
 
-第二个不同就是错误会封装在错误拦截器内部而不会影响到外部的请求, 我们假设下方的这个请求的结果是失败的:
+第二个不同就是错误会封装在错误拦截器内部, 下方我们请求了一个不存在的地址:
 
 ```javascript
 request
   .get("/user", {
     failHandler: function (error) {
+      // 不做处理
       console.log(error);
     },
   })
   .then((result) => {
+    // 错误封装到了错误拦截中, 由于本次请求是一个失败的请求故没有返回值
     if (result === undefined) {
       // true
     }
@@ -318,7 +320,7 @@ request
 ```javascript
 request.get("/user").then((result) => {
   if (result) {
-    
+    // do something
   }
 });
 ```
@@ -337,15 +339,15 @@ request.get("/user", {
 });
 ```
 
-错误拦截器本质是处理错误, 而不是抛出错误, 所以原本在前置后置拦截器中的错误处理在此处的含义完全不同.
+错误拦截器主要的目的是处理错误, 所以没有主动抛出错误的设计, 所以原本在前置后置拦截器中的错误处理在此处的含义完全不同.
 
 - `Promise.resolve()` 定义和前置拦截器相同
 - `Promise.reject()` 定义和前置拦截器相同
-- `new Error("do something")` 表示拦截器本身抛出的错误或者超出该拦截器的处理范围, 相当于 `Promise.reject(new Error("do something"))`
+- `new Error("do something")` 拦截器本身错误或者超出该拦截器的处理范围, 相当于 `Promise.reject(new Error("do something"))`
 
-虽然错误拦截具有一定的控制能力, 但是使用前必须仔细考虑, 因为一旦使用上述规则就意味着后续的错误拦截器将无法执行, 这可能会造成意料之外的效果.
+虽然基于上述的操作可以控制 `axios-mix` 执行的流程, 但是使用前必须仔细考虑, 因为一旦使用上述规则就意味着后续的错误拦截器将无法执行.
 
-局部错误拦截器的异步版本的执行规则和前置后置拦截器类似, 同时请不要忘记如果异步拦截器先 `return` 且符合 `failHandler` 的同步版本的返回值的定义则执行同步流程, 这会导致后续的拦截器彻底无法执行:
+局部错误拦截器的异步版本的执行规则和前置后置拦截器相同, 同时请不要忘记如果异步拦截器先 `return` 且符合 `failHandler` 的同步版本的返回值的定义则执行同步流程, 这会导致后续的拦截器彻底无法执行:
 
 ```javascript
 request.get("/user", {
@@ -375,7 +377,7 @@ request.get("/user", {
 
 ### 全局错误拦截器(errorHandler)
 
-errorHandler 和 fail
+errorHandler 和 failHandler 只有一点区别
 
 ### 手动拦截器与拦截器队列参数
 
