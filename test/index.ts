@@ -5,19 +5,20 @@ import MockAdapter from "axios-mock-adapter";
 const axios = AxiosMix(Axios);
 const mock = new MockAdapter(axios);
 
-mock.onGet("/users").reply(500, {
+mock.onGet("/users").reply(200, {
   users: [{ id: 1, name: "John Smith" }],
 });
 
-// axios.interceptors.request.use(
-//   function (config) {
-//     return config;
-//   },
-//   function (error) {
-//     console.log("request error");
-//     debugger;
-//   }
-// );
+axios.interceptors.request.use(
+  function (config) {
+    debugger
+    return config;
+  }
+  // function (error) {
+  //   console.log("request error");
+  //   debugger;
+  // }
+);
 
 axios.interceptors.response.use(
   function (response) {
@@ -25,8 +26,8 @@ axios.interceptors.response.use(
     return response;
   },
   function (error) {
-    return Promise.resolve("hello world");
     debugger;
+    return Promise.resolve("hello world");
   }
 );
 
