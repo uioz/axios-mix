@@ -5,10 +5,13 @@ import {
   AxiosResponse,
 } from "axios";
 
+import * as executor from "./executor";
+
 import {
   ExtendInterceptorOptions,
   extend,
-  InnerInterceptor,
+  InnerInterceptorQueue,
+  preProcess,
 } from "./interceptors";
 
 export type AxiosMixRequestConfig<R = any> = ExtendInterceptorOptions<R> &
@@ -87,10 +90,10 @@ const ProxyKeySet = new Set<ProxyKeys>([
   "patch",
 ]);
 
-type ExtendedKeys = "extend" | "inject" | "eject";
+type ExtendedKeys = "extend";
 
 // 扩展方法签名
-const ExtendedKeySet = new Set<ExtendedKeys>(["extend", "inject", "eject"]);
+const ExtendedKeySet = new Set<ExtendedKeys>(["extend"]);
 
 function isProxyKeySet(key: any): key is ProxyKeys {
   return ProxyKeySet.has(key);
@@ -103,50 +106,59 @@ function isExtendedKeySet(key: any): key is ExtendedKeys {
 export interface Options {
   cache?: any;
   retry?: any;
-  queue?: ExtendInterceptorOptions<any>;
 }
 
 interface innerOption {
   id?: number;
+  queue?: ExtendInterceptorOptions<any>;
+}
+
+function MarkIdOnConfig(config: any, id: number) {
+  if (config) {
+    config._id = id;
+  } else {
+    config = { _id: id };
+  }
+  return config;
 }
 
 function AxiosMix(axios: AxiosInstance, options?: Options & innerOption) {
-  const interceptorsQueue: InnerInterceptor = extend(options?.queue);
+  const interceptorsQueue: InnerInterceptorQueue = preProcess(
+    extend(options?.queue)
+  );
 
   // 配置当前作用域的唯一 ID
   // 唯一 ID 是由外部传入的
   // 如果没有唯一 ID 则初始化为 1
   const id = typeof options?.id === "number" ? options.id : 1;
 
-  // 只有首次创建的 AxiosMix 会创建拦截器
-  // 而基于该 AxiosMix.extend 扩展的实例
-  // 不会添加拦截器
-  if (id === 1) {
-    axios.interceptors.request.use(function (config: any) {
-      if (config._id !== id) {
-        return config;
+  axios.interceptors.request.use(function (config: any) {
+    // extend 作用域 id 和请求 id 不一致不拦截
+    if (config._id !== id) {
+      return config;
+    }
+
+    return executor.beforeRequest(interceptorsQueue.beforeRequest, config);
+  });
+
+  axios.interceptors.response.use(
+    function (response: any) {
+      // extend 作用域 id 和请求 id 不一致不拦截
+      if (response.config._id !== id) {
+        return response;
       }
 
-      return config;
-    });
-
-    axios.interceptors.response.use(
-      function (response: any) {
-        if (response.config._id !== id) {
-          return response;
-        }
-
-        return response;
-      },
-      function (error: any) {
-        if (error.config._id !== id) {
-          return error;
-        }
-
+      return response;
+    },
+    function (error: any) {
+      // extend 作用域 id 和请求 id 不一致不拦截
+      if (error.config._id !== id) {
         return error;
       }
-    );
-  }
+
+      return error;
+    }
+  );
 
   return new Proxy<ExtendAxiosInstance>(axios as any, {
     get(target, key) {
@@ -154,35 +166,20 @@ function AxiosMix(axios: AxiosInstance, options?: Options & innerOption) {
         switch (key) {
           case "request":
             return function (config: any) {
-              if (config) {
-                config._id = id;
-              } else {
-                config = { _id: id };
-              }
-              return target[key](config);
+              return target[key](MarkIdOnConfig(config, id));
             };
           case "get":
           case "delete":
           case "head":
           case "options":
             return function (url: any, config: any) {
-              if (config) {
-                config._id = id;
-              } else {
-                config = { _id: id };
-              }
-              return target[key](url, config);
+              return target[key](url, MarkIdOnConfig(config, id));
             };
           case "post":
           case "put":
           case "patch":
             return function (url: any, data: any, config: any) {
-              if (config) {
-                config._id = id;
-              } else {
-                config = { _id: id };
-              }
-              return target[key](url, data, config);
+              return target[key](url, data, MarkIdOnConfig(config, id));
             };
         }
       } else if (isExtendedKeySet(key)) {
@@ -199,11 +196,6 @@ function AxiosMix(axios: AxiosInstance, options?: Options & innerOption) {
                 id: id + 1,
               });
             };
-            // TODO: 取消掉 inject 和 eject
-          case "inject":
-            return function () {};
-          case "eject":
-            return function () {};
         }
       }
 
