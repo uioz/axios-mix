@@ -63,7 +63,7 @@ export interface AxiosMixInstance extends AxiosInstance {
  * 实例方法扩展定义
  */
 export interface ExtendAxiosInstance extends AxiosMixInstance {
-  extend: any;
+  extend(interceptors: ExtendInterceptorOptions<any>): void;
   inject: any;
   eject: any;
 }
@@ -123,6 +123,7 @@ function MarkIdOnConfig(config: any, id: number) {
 }
 
 function AxiosMix(axios: AxiosInstance, options?: Options & innerOption) {
+  debugger;
   const interceptorsQueue: InnerInterceptorQueue = preProcess(
     extend(options?.queue)
   );

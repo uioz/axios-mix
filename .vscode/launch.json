@@ -11,7 +11,8 @@
       "skipFiles": ["<node_internals>/**"],
       "program": "${workspaceFolder}/dist/test/index.js",
       "preLaunchTask": "npm: build:map",
-      "outFiles": ["${workspaceFolder}/dist/**/*.js"]
+      "outFiles": ["${workspaceFolder}/dist/**/*.js"],
+      "restart": true,
     }
   ]
 }
