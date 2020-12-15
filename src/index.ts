@@ -5,10 +5,7 @@ import {
   AxiosResponse,
 } from "axios";
 
-export interface Options {
-  cache: any;
-  retry: any;
-}
+
 
 /**
  * 拦截器定义
@@ -102,8 +99,13 @@ function isProxyKeySet(key: any): key is ProxyKeys {
   return ProxyKeySet.has(key);
 }
 
-function isExtendedKeySet(key: any): key is ProxyKeys | ExtendedKeys {
+function isExtendedKeySet(key: any): key is ExtendedKeys {
   return ExtendedKeySet.has(key);
+}
+
+export interface Options {
+  cache: any;
+  retry: any;
 }
 
 function AxiosMix(axios: AxiosInstance, options?: Options) {
@@ -132,7 +134,14 @@ function AxiosMix(axios: AxiosInstance, options?: Options) {
   return new Proxy<ExtendAxiosInstance>(axios as any, {
     get(target, key) {
       if (isExtendedKeySet(key)) {
-        return function () {};
+        switch (key) {
+          case "extend":
+            return function () {};
+          case "inject":
+            return function () {};
+          case "eject":
+            return function () {};
+        }
       }
 
       // 透明代理
