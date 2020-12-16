@@ -2,14 +2,14 @@ import Axios, { AxiosRequestConfig } from "axios";
 import AxiosMix from "../src/index";
 import MockAdapter from "axios-mock-adapter";
 
-const axios = AxiosMix(Axios);
+let axios = AxiosMix(Axios);
 const mock = new MockAdapter(axios);
 
 mock.onGet("/users").reply(200, {
   users: [{ id: 1, name: "John Smith" }],
 });
 
-axios.extend({
+axios = axios.extend({
   beforeRequest(config: AxiosRequestConfig) {
     return config;
   },
@@ -54,6 +54,6 @@ axios.extend({
 //     debugger;
 //   });
 
-// axios("/users").then(function (response) {
-//   console.log(response.data);
-// });
+axios.get("/users").then(function (response) {
+  console.log(response.data);
+});

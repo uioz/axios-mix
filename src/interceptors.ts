@@ -147,7 +147,8 @@ export function preProcess(innerInterceptorQueue: InnerInterceptorQueue) {
           ...item,
           queue: [],
         };
-      } else {
+        // @ts-ignore
+      } else if (manuallyInceptor) {
         // @ts-ignore
         manuallyInceptor.queue.push(item);
       }

@@ -14,7 +14,7 @@ export interface AxiosMixInstance extends AxiosInstance {
     patch<T = any, R = AxiosResponse<T>>(url: string, data?: any, config?: AxiosMixRequestConfig<R>): Promise<R>;
 }
 export interface ExtendAxiosInstance extends AxiosMixInstance {
-    extend(interceptors: ExtendInterceptorOptions<any>): void;
+    extend(interceptors: ExtendInterceptorOptions<any>): ExtendAxiosInstance;
     inject: any;
     eject: any;
 }

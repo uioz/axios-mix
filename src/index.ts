@@ -63,44 +63,9 @@ export interface AxiosMixInstance extends AxiosInstance {
  * 实例方法扩展定义
  */
 export interface ExtendAxiosInstance extends AxiosMixInstance {
-  extend(interceptors: ExtendInterceptorOptions<any>): void;
+  extend(interceptors: ExtendInterceptorOptions<any>): ExtendAxiosInstance;
   inject: any;
   eject: any;
-}
-
-type ProxyKeys =
-  | "request"
-  | "get"
-  | "delete"
-  | "head"
-  | "options"
-  | "post"
-  | "put"
-  | "patch";
-
-// 重写方法签名
-const ProxyKeySet = new Set<ProxyKeys>([
-  "request",
-  "get",
-  "delete",
-  "head",
-  "options",
-  "post",
-  "put",
-  "patch",
-]);
-
-type ExtendedKeys = "extend";
-
-// 扩展方法签名
-const ExtendedKeySet = new Set<ExtendedKeys>(["extend"]);
-
-function isProxyKeySet(key: any): key is ProxyKeys {
-  return ProxyKeySet.has(key);
-}
-
-function isExtendedKeySet(key: any): key is ExtendedKeys {
-  return ExtendedKeySet.has(key);
 }
 
 export interface Options {
@@ -123,7 +88,6 @@ function MarkIdOnConfig(config: any, id: number) {
 }
 
 function AxiosMix(axios: AxiosInstance, options?: Options & innerOption) {
-  debugger;
   const interceptorsQueue: InnerInterceptorQueue = preProcess(
     extend(options?.queue)
   );
@@ -163,46 +127,41 @@ function AxiosMix(axios: AxiosInstance, options?: Options & innerOption) {
 
   return new Proxy<ExtendAxiosInstance>(axios as any, {
     get(target, key) {
-      if (isProxyKeySet(key)) {
-        switch (key) {
-          case "request":
-            return function (config: any) {
-              return target[key](MarkIdOnConfig(config, id));
-            };
-          case "get":
-          case "delete":
-          case "head":
-          case "options":
-            return function (url: any, config: any) {
-              return target[key](url, MarkIdOnConfig(config, id));
-            };
-          case "post":
-          case "put":
-          case "patch":
-            return function (url: any, data: any, config: any) {
-              return target[key](url, data, MarkIdOnConfig(config, id));
-            };
-        }
-      } else if (isExtendedKeySet(key)) {
-        switch (key) {
-          case "extend":
-            return function (
-              interceptor: ExtendInterceptorOptions<any>,
-              o: Options
-            ) {
-              return AxiosMix(target, {
-                ...options,
-                ...o,
-                queue: interceptor,
-                id: id + 1,
-              });
-            };
-        }
+      switch (key) {
+        case "request":
+          return function (config: any) {
+            return target[key](MarkIdOnConfig(config, id));
+          };
+        case "get":
+        case "delete":
+        case "head":
+        case "options":
+          return function (url: any, config: any) {
+            return target[key](url, MarkIdOnConfig(config, id));
+          };
+        case "post":
+        case "put":
+        case "patch":
+          return function (url: any, data: any, config: any) {
+            return target[key](url, data, MarkIdOnConfig(config, id));
+          };
+        case "extend":
+          return function (
+            interceptor: ExtendInterceptorOptions<any>,
+            o: Options
+          ) {
+            return AxiosMix(target, {
+              ...options,
+              ...o,
+              queue: interceptor,
+              id: id + 1,
+            });
+          };
+        default:
+          // 透明代理
+          // @ts-ignore
+          return target[key];
       }
-
-      // 透明代理
-      // @ts-ignore
-      return target[key];
     },
   });
 }
