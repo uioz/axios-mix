@@ -7,6 +7,9 @@ enum InterceptorType {
   IS_ASYNC_CATCH = 3,
 }
 
+export const MAX_ARGS_OF_INTERCEPTOR = 3;
+export const MIN_ARGS_OF_INTERCEPTOR = 1;
+
 export function isManually(data: any): data is ManuallyInterceptor<any> {
   if (data?.manually === true && typeof data.interceptor === "function") {
     return true;
@@ -19,31 +22,27 @@ export function beforeRequest(
   innerInterceptorQueue: Array<InnerInterceptorUnited>,
   config: AxiosMixRequestConfig
 ) {
-  // for (let item of innerInterceptorQueue) {
-  //   if (isManually(item)) {
-  //   }
-  //   // @ts-ignore
-  //   if (item.interceptor) {
-  //     // @ts-ignore
-  //     item = item.interceptor;
-  //   }
-  //   if (typeof item === "function") {
-  //     switch (item.length) {
-  //       case InterceptorType.IS_ASYNC:
-  //         break;
-  //       case InterceptorType.IS_ASYNC:
-  //         break;
-  //       case InterceptorType.IS_ASYNC_CATCH:
-  //         break;
-  //       default:
-  //         throw new Error(
-  //           `The maximum arguments of interceptor is 3 but got ${item.length}.`
-  //         );
-  //     }
-  //   } else {
-  //     throw new Error("unknow interceptor");
-  //   }
-  // }
+  for (let item of innerInterceptorQueue) {
+    if (isManually(item)) {
+    }
+
+    // handle situation like {manaually:false,interceptor:function(){}}
+    // @ts-ignore
+    if (item.interceptor) {
+      // @ts-ignore
+      item = item.interceptor;
+    }
+    if (typeof item === "function") {
+      switch (item.length) {
+        case InterceptorType.IS_ASYNC:
+          break;
+        case InterceptorType.IS_ASYNC:
+          break;
+        case InterceptorType.IS_ASYNC_CATCH:
+          break;
+      }
+    }
+  }
 
   return config;
 }

@@ -1,5 +1,9 @@
 import { AxiosRequestConfig, AxiosResponse } from "axios";
-import { isManually } from "./executor";
+import {
+  isManually,
+  MAX_ARGS_OF_INTERCEPTOR,
+  MIN_ARGS_OF_INTERCEPTOR,
+} from "./executor";
 
 type NextHook = (data: any) => void;
 
@@ -76,6 +80,33 @@ export interface InnerInterceptorQueue {
   errorHandler: Array<InnerInterceptorUnited>;
 }
 
+function check(item: ExtendInterceptorUnited<any>) {
+  function checkArgs(args: number) {
+    if (args > MAX_ARGS_OF_INTERCEPTOR) {
+      throw new Error(
+        `The maximum arguments of interceptor is ${MAX_ARGS_OF_INTERCEPTOR} but got ${args}.`
+      );
+    } else if (args < MIN_ARGS_OF_INTERCEPTOR) {
+      throw new Error(
+        `The minimum arguments of interceptor is ${MIN_ARGS_OF_INTERCEPTOR} but got ${args}.`
+      );
+    }
+  }
+
+  if (typeof item === "function") {
+    return checkArgs(item.length);
+  } else if (isManually(item)) {
+    // 手动拦截器比其他拦截多个一个参数
+    return checkArgs(item.interceptor.length - 1);
+    // @ts-ignore
+  } else if (typeof item?.interceptor === "function") {
+    // @ts-ignore
+    return checkArgs(item.interceptor.length);
+  } else {
+    throw new Error("unknow interceptor type");
+  }
+}
+
 /**
  * TODO: waiting test
  * 将内部队列和外部传入的队列进行合并然后创建一个新的队列
@@ -102,7 +133,16 @@ export function extend(
     for (const key of Object.keys(innerInterceptors) as Array<
       keyof InnerInterceptorQueue
     >) {
-      if (extendInterceptors[key]) {
+      const queue = extendInterceptors[key];
+      if (queue) {
+        if (Array.isArray(queue)) {
+          for (const item of queue) {
+            check(item);
+          }
+        } else {
+          check(queue);
+        }
+
         // @ts-ignore
         data[key] = innerInterceptors[key].concat(extendInterceptors[key]);
       }
