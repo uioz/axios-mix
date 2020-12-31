@@ -3,6 +3,8 @@ import {
   isManually,
   MAX_ARGS_OF_INTERCEPTOR,
   MIN_ARGS_OF_INTERCEPTOR,
+  InterceptorType,
+  ManuallyInterceptorType,
 } from "./executor";
 
 type NextHook = (data: any) => void;
@@ -113,8 +115,8 @@ function check(item: ExtendInterceptorUnited<any>) {
  * 如果只传入一个参数则外部拦截器和内部的空拦截器合并
  * 如果不传入参数则返回一个初始拦截器对象
  * **注意**: 该函数仅用于合并, 不会去处理那些非函数的特殊拦截器
- * @param extendInterceptors
- * @param innerInterceptors
+ * @param extendInterceptors 用于扩展的队列
+ * @param innerInterceptors 被扩展的基础队列
  */
 export function extend(
   extendInterceptors?: ExtendInterceptorOptions<any>,
@@ -154,7 +156,7 @@ export function extend(
 
 /**
  * TODO: waiting test
- * 将特殊的非函数拦截器进行预处理
+ * 将特殊的非函数拦截器进行预处理.
  * @param extendInterceptors
  * @param innerInterceptors
  */
@@ -164,34 +166,66 @@ export function preProcess(innerInterceptorQueue: InnerInterceptorQueue) {
   >) {
     const queue = innerInterceptorQueue[key];
 
+    let index = 0;
     let len = queue.length;
-    let manuallyInceptor: ManuallyInterceptorProcessed<any>;
 
-    // [function(){},{manaually:true,interceptor:function(){}}]
-    // =>
-    // [{manaually:true,interceptor:function(){},queue:[function(){}]}]
-    while (len--) {
-      const item = queue[len];
-      if (isManually(item)) {
-        // 逆向迭代的过程中发现了新的手动拦截器
-        // 则停止继续处理, 将刚才处理完成的单个手动拦截器
-        // 替换掉所迭代过的整个范围中的所有元素
-        // 然后退出迭代
-        // @ts-ignore
-        if (manuallyInceptor) {
-          queue.splice(len + 1, queue.length, manuallyInceptor);
-          break;
-        }
+    let prevItem;
+    let preErrorQueue = [];
+    let preManuallyQueue = [];
+    let manuallyInceptorCount = 0;
 
-        manuallyInceptor = {
-          ...item,
-          queue: [],
-        };
-        // @ts-ignore
-      } else if (manuallyInceptor) {
-        // @ts-ignore
-        manuallyInceptor.queue.push(item);
+    while (index < len) {
+      const IsManually = isManually(queue[index]);
+      const item = IsManually
+        ? queue[index]
+        : {
+            interceptor: queue[index],
+            nextHandler: undefined,
+            nextErrorHandler: undefined,
+          };
+
+      // 如果有上次循环的元素
+      // 则写入到当前元素的 handler 中
+      if (prevItem) {
+        prevItem.nextHandler = item;
       }
+
+      if (IsManually) {
+        // 将 else 部分保存的元素移动到 queue 中
+        item.queue = preManuallyQueue;
+        // 将扫描过的内容替换为当前的元素
+        queue.splice(manuallyInceptorCount, index, item);
+        preManuallyQueue = [];
+        // 由于数组本身被修改了, 所以重置 index 和 len
+
+        // index 获取 manuallyInceptorCount 未自增前的值
+        // 在随后的 index++ 中会变为 manuallyInceptorCount 自增后的值
+        // 这样做将会跳过手动拦截器
+        index = manuallyInceptorCount++;
+        len = queue.length;
+      } else {
+        preManuallyQueue.push(item);
+      }
+
+      // 如果当前是错误拦截器
+      // 则将之前存储的所有拦截器的指针指向自己
+      if (
+        IsManually
+          ? ManuallyInterceptorType.IS_ASYNC_CATCH === item.interceptor.length
+          : InterceptorType.IS_ASYNC_CATCH === item.interceptor.length
+      ) {
+        for (const prevItem of preErrorQueue) {
+          prevItem.nextErrorHandler = item;
+        }
+        preErrorQueue = [];
+      }
+      //
+      preErrorQueue.push(item);
+
+      // 将之前的元素指向自己
+      prevItem = item;
+
+      index++;
     }
   }
 

@@ -1,10 +1,16 @@
 import { AxiosMixRequestConfig } from "./index";
 import { InnerInterceptorUnited, ManuallyInterceptor } from "./interceptors";
 
-enum InterceptorType {
+export enum InterceptorType {
   IS_SYNC = 1,
   IS_ASYNC = 2,
   IS_ASYNC_CATCH = 3,
+}
+
+export enum ManuallyInterceptorType {
+  IS_SYNC = 2,
+  IS_ASYNC = 3,
+  IS_ASYNC_CATCH = 4,
 }
 
 export const MAX_ARGS_OF_INTERCEPTOR = 3;
@@ -34,8 +40,19 @@ export function beforeRequest(
     }
     if (typeof item === "function") {
       switch (item.length) {
-        case InterceptorType.IS_ASYNC:
-          break;
+        case InterceptorType.IS_SYNC:
+          try {
+            const result = item(config);
+
+            if (result) {
+              return result;
+            }
+
+            return config;
+          } catch (error) {
+            error.config = config;
+            throw error;
+          }
         case InterceptorType.IS_ASYNC:
           break;
         case InterceptorType.IS_ASYNC_CATCH:

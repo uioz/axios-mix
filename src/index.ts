@@ -59,23 +59,26 @@ export interface AxiosMixInstance extends AxiosInstance {
   ): Promise<R>;
 }
 
-/**
- * 实例方法扩展定义
- */
-export interface ExtendAxiosInstance extends AxiosMixInstance {
-  extend(interceptors: ExtendInterceptorOptions<any>): ExtendAxiosInstance;
-  inject: any;
-  eject: any;
-}
-
 export interface Options {
   cache?: any;
   retry?: any;
 }
 
+/**
+ * 实例方法扩展定义
+ */
+export interface ExtendAxiosInstance extends AxiosMixInstance {
+  extend(
+    interceptors: ExtendInterceptorOptions<any>,
+    options?: Options
+  ): ExtendAxiosInstance;
+  inject: any;
+  eject: any;
+}
+
 interface innerOption {
   id?: number;
-  queue?: ExtendInterceptorOptions<any>;
+  queue?: InnerInterceptorQueue;
 }
 
 function MarkIdOnConfig(config: any, id: number) {
@@ -88,9 +91,7 @@ function MarkIdOnConfig(config: any, id: number) {
 }
 
 function AxiosMix(axios: AxiosInstance, options?: Options & innerOption) {
-  const interceptorsQueue: InnerInterceptorQueue = preProcess(
-    extend(options?.queue)
-  );
+  const interceptorsQueue: InnerInterceptorQueue = options?.queue ?? extend();
 
   // 配置当前作用域的唯一 ID
   // 唯一 ID 是由外部传入的
@@ -148,12 +149,13 @@ function AxiosMix(axios: AxiosInstance, options?: Options & innerOption) {
         case "extend":
           return function (
             interceptor: ExtendInterceptorOptions<any>,
-            o: Options
+            o?: Options
           ) {
             return AxiosMix(target, {
               ...options,
               ...o,
-              queue: interceptor,
+              //    内外合并 预处理   统一外部格式
+              queue: extend(preProcess(extend(interceptor)), interceptorsQueue),
               id: id + 1,
             });
           };

@@ -13,14 +13,14 @@ export interface AxiosMixInstance extends AxiosInstance {
     put<T = any, R = AxiosResponse<T>>(url: string, data?: any, config?: AxiosMixRequestConfig<R>): Promise<R>;
     patch<T = any, R = AxiosResponse<T>>(url: string, data?: any, config?: AxiosMixRequestConfig<R>): Promise<R>;
 }
-export interface ExtendAxiosInstance extends AxiosMixInstance {
-    extend(interceptors: ExtendInterceptorOptions<any>): ExtendAxiosInstance;
-    inject: any;
-    eject: any;
-}
 export interface Options {
     cache?: any;
     retry?: any;
+}
+export interface ExtendAxiosInstance extends AxiosMixInstance {
+    extend(interceptors: ExtendInterceptorOptions<any>, options?: Options): ExtendAxiosInstance;
+    inject: any;
+    eject: any;
 }
 interface innerOption {
     id?: number;

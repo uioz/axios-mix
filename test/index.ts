@@ -11,7 +11,8 @@ mock.onGet("/users").reply(200, {
 
 axios = axios.extend({
   beforeRequest(config: AxiosRequestConfig) {
-    return config;
+    throw new Error();
+    // return config;
   },
 });
 
