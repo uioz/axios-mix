@@ -75,7 +75,7 @@ export interface OuterInterceptorOptions<R> {
 /**
  * 该接口描述了经过 extend 后转为统一队列的外部传入的参数
  */
-export interface OuterInterceptorQueue {
+export interface RawInterceptorQueue {
   beforeRequest: Array<Interceptor<any> | ManuallyInterceptor<any>>;
   afterResponse: Array<Interceptor<any> | ManuallyInterceptor<any>>;
   failHandler: Array<Interceptor<any> | ManuallyInterceptor<any>>;
@@ -127,6 +127,18 @@ function check(item: ExtendInterceptorUnited<any>) {
   }
 }
 
+export function extend(): RawInterceptorQueue;
+export function extend(
+  interceptorOption: OuterInterceptorOptions<any>
+): RawInterceptorQueue;
+export function extend(
+  extendInterceptors: RawInterceptorQueue,
+  innerInterceptors: RawInterceptorQueue
+): RawInterceptorQueue;
+export function extend(
+  extendInterceptors: InnerInterceptorQueue,
+  innerInterceptors: InnerInterceptorQueue
+): InnerInterceptorQueue;
 /**
  * TODO: waiting test
  * 将内部队列和外部传入的队列进行合并然后创建一个新的队列
@@ -136,11 +148,8 @@ function check(item: ExtendInterceptorUnited<any>) {
  * @param extendInterceptors 用于扩展的队列
  * @param innerInterceptors 被扩展的基础队列
  */
-export function extend(
-  extendInterceptors?: OuterInterceptorOptions<any>,
-  innerInterceptors?: InnerInterceptorQueue
-) {
-  const data: InnerInterceptorQueue = {
+export function extend(extendInterceptors?: any, innerInterceptors?: any) {
+  const data = {
     beforeRequest: [],
     afterResponse: [],
     failHandler: [],
@@ -151,7 +160,7 @@ export function extend(
     innerInterceptors = innerInterceptors ?? data;
 
     for (const key of Object.keys(innerInterceptors) as Array<
-      keyof InnerInterceptorQueue
+      keyof RawInterceptorQueue
     >) {
       const queue = extendInterceptors[key];
       if (queue) {
@@ -178,9 +187,11 @@ export function extend(
  * @param extendInterceptors
  * @param innerInterceptors
  */
-export function preProcess(innerInterceptorQueue: InnerInterceptorQueue) {
+export function preProcess(
+  innerInterceptorQueue: RawInterceptorQueue
+): InnerInterceptorQueue {
   for (const key of Object.keys(innerInterceptorQueue) as Array<
-    keyof InnerInterceptorQueue
+    keyof RawInterceptorQueue
   >) {
     const queue = innerInterceptorQueue[key];
 
