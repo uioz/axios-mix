@@ -16,6 +16,15 @@ export interface Interceptor<C> {
 }
 
 /**
+ * 经过处理后的拦截器定义
+ */
+export interface InterceptorProcessed<C> {
+  interceptor: Interceptor<C>;
+  nextHandler: never;
+  nextErrorHandler: never;
+}
+
+/**
  * 手动拦截器
  * 泛型 C 表示首个参数的类型
  */
@@ -34,16 +43,11 @@ export interface ManuallyInterceptor<C> {
  * 经过处理后的手动拦截器
  * 泛型 C 表示首个参数的类型
  */
-export interface ManuallyInterceptorProcessed<C> {
-  /**
-   * 泛型 T 表示 Promise 返回的内容
-   */
-  manually: boolean;
+export interface ManuallyInterceptorProcessed<C>
+  extends ManuallyInterceptor<C> {
   queue: Array<Interceptor<C>>;
-  interceptor<T>(
-    queue: Array<Interceptor<C>>,
-    next: NextHook
-  ): Promise<T> | Error | C;
+  nextHandler: never;
+  nextErrorHandler: never;
 }
 
 export type ExtendInterceptorUnited<T> =
@@ -59,27 +63,41 @@ export type ExtendInterceptor<T> =
   | Array<ExtendInterceptorUnited<T>>;
 
 /**
- * 该接口描述了如何给定拦截器
+ * 该接口描述了 axios-mix 支持外部参数的对象格式
  */
-export interface ExtendInterceptorOptions<R> {
+export interface OuterInterceptorOptions<R> {
   beforeRequest?: ExtendInterceptor<AxiosRequestConfig>;
   afterResponse?: ExtendInterceptor<AxiosResponse<R>>;
   failHandler?: ExtendInterceptor<any>;
   errorHandler?: ExtendInterceptor<any>;
 }
 
-export type InnerInterceptorUnited =
-  | Interceptor<any>
-  | ManuallyInterceptorProcessed<any>;
+/**
+ * 该接口描述了经过 extend 后转为统一队列的外部传入的参数
+ */
+export interface OuterInterceptorQueue {
+  beforeRequest: Array<Interceptor<any> | ManuallyInterceptor<any>>;
+  afterResponse: Array<Interceptor<any> | ManuallyInterceptor<any>>;
+  failHandler: Array<Interceptor<any> | ManuallyInterceptor<any>>;
+  errorHandler: Array<Interceptor<any> | ManuallyInterceptor<any>>;
+}
 
 /**
  * 该接口描述了保存在 axios-mix 内部队列的类型
  */
 export interface InnerInterceptorQueue {
-  beforeRequest: Array<InnerInterceptorUnited>;
-  afterResponse: Array<InnerInterceptorUnited>;
-  failHandler: Array<InnerInterceptorUnited>;
-  errorHandler: Array<InnerInterceptorUnited>;
+  beforeRequest: Array<
+    InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>
+  >;
+  afterResponse: Array<
+    InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>
+  >;
+  failHandler: Array<
+    InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>
+  >;
+  errorHandler: Array<
+    InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>
+  >;
 }
 
 function check(item: ExtendInterceptorUnited<any>) {
@@ -119,7 +137,7 @@ function check(item: ExtendInterceptorUnited<any>) {
  * @param innerInterceptors 被扩展的基础队列
  */
 export function extend(
-  extendInterceptors?: ExtendInterceptorOptions<any>,
+  extendInterceptors?: OuterInterceptorOptions<any>,
   innerInterceptors?: InnerInterceptorQueue
 ) {
   const data: InnerInterceptorQueue = {
@@ -200,7 +218,7 @@ export function preProcess(innerInterceptorQueue: InnerInterceptorQueue) {
 
         // index 获取 manuallyInceptorCount 未自增前的值
         // 在随后的 index++ 中会变为 manuallyInceptorCount 自增后的值
-        // 这样做将会跳过手动拦截器
+        // 这样做将会跳过队列中已经存在的手动拦截器
         index = manuallyInceptorCount++;
         len = queue.length;
       } else {
@@ -208,7 +226,7 @@ export function preProcess(innerInterceptorQueue: InnerInterceptorQueue) {
       }
 
       // 如果当前是错误拦截器
-      // 则将之前存储的所有拦截器的指针指向自己
+      // 则将之前存储的所有拦截器的引用指向自己
       if (
         IsManually
           ? ManuallyInterceptorType.IS_ASYNC_CATCH === item.interceptor.length

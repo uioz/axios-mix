@@ -8,13 +8,13 @@ import {
 import * as executor from "./executor";
 
 import {
-  ExtendInterceptorOptions,
+  OuterInterceptorOptions,
   extend,
   InnerInterceptorQueue,
   preProcess,
 } from "./interceptors";
 
-export type AxiosMixRequestConfig<R = any> = ExtendInterceptorOptions<R> &
+export type AxiosMixRequestConfig<R = any> = OuterInterceptorOptions<R> &
   AxiosRequestConfig;
 
 /**
@@ -69,16 +69,11 @@ export interface Options {
  */
 export interface ExtendAxiosInstance extends AxiosMixInstance {
   extend(
-    interceptors: ExtendInterceptorOptions<any>,
+    interceptors: OuterInterceptorOptions<any>,
     options?: Options
   ): ExtendAxiosInstance;
   inject: any;
   eject: any;
-}
-
-interface innerOption {
-  id?: number;
-  queue?: InnerInterceptorQueue;
 }
 
 function MarkIdOnConfig(config: any, id: number) {
@@ -90,13 +85,22 @@ function MarkIdOnConfig(config: any, id: number) {
   return config;
 }
 
-function AxiosMix(axios: AxiosInstance, options?: Options & innerOption) {
-  const interceptorsQueue: InnerInterceptorQueue = options?.queue ?? extend();
+function AxiosMix(axios: AxiosInstance, options?: Options) {
+  interface innerOption {
+    id: number;
+    queue: InnerInterceptorQueue;
+  }
+
+  const interceptorsQueue: InnerInterceptorQueue =
+    (options as innerOption)?.queue ?? extend();
 
   // 配置当前作用域的唯一 ID
   // 唯一 ID 是由外部传入的
   // 如果没有唯一 ID 则初始化为 1
-  const id = typeof options?.id === "number" ? options.id : 1;
+  const id =
+    typeof (options as innerOption)?.id === "number"
+      ? (options as innerOption).id
+      : 1;
 
   axios.interceptors.request.use(function (config: any) {
     // extend 作用域 id 和请求 id 不一致不拦截
@@ -148,19 +152,19 @@ function AxiosMix(axios: AxiosInstance, options?: Options & innerOption) {
           };
         case "extend":
           return function (
-            interceptor: ExtendInterceptorOptions<any>,
+            interceptor: OuterInterceptorOptions<any>,
             o?: Options
           ) {
             return AxiosMix(target, {
               ...options,
               ...o,
+              // @ts-ignore
               //    内外合并 预处理   统一外部格式
               queue: extend(preProcess(extend(interceptor)), interceptorsQueue),
               id: id + 1,
             });
           };
         default:
-          // 透明代理
           // @ts-ignore
           return target[key];
       }
