@@ -182,21 +182,24 @@ export function extend(extendInterceptors?: any, innerInterceptors?: any) {
 }
 
 /**
- * TODO: waiting test
  * 将特殊的非函数拦截器进行预处理.
  * @param extendInterceptors
  * @param innerInterceptors
  */
 export function preProcess(
-  innerInterceptorQueue: RawInterceptorQueue
+  rawInterceptorQueue: RawInterceptorQueue
 ): InnerInterceptorQueue {
-  for (const key of Object.keys(innerInterceptorQueue) as Array<
+  for (const key of Object.keys(rawInterceptorQueue) as Array<
     keyof RawInterceptorQueue
   >) {
-    const queue = innerInterceptorQueue[key];
+    const queue = rawInterceptorQueue[key];
 
     let index = 0;
     let len = queue.length;
+
+    if(len === 0){
+      continue;
+    }
 
     let prevItem;
     let preErrorQueue = [];
@@ -223,17 +226,23 @@ export function preProcess(
         // 将 else 部分保存的元素移动到 queue 中
         item.queue = preManuallyQueue;
         // 将扫描过的内容替换为当前的元素
-        queue.splice(manuallyInceptorCount, index, item);
+        // splice 的第二个参数最小值是 1 而 while 循环是从 0 开始的
+        // 所以需要 + 1
+        queue.splice(manuallyInceptorCount, index + 1, item);
         preManuallyQueue = [];
         // 由于数组本身被修改了, 所以重置 index 和 len
-
         // index 获取 manuallyInceptorCount 未自增前的值
-        // 在随后的 index++ 中会变为 manuallyInceptorCount 自增后的值
-        // 这样做将会跳过队列中已经存在的手动拦截器
+        // 本次循环结束的 index++ 的值将会和 manuallyInceptorCount++ 相同
+        // 这样做会让下次循环跳过队列中的手动拦截器(所有的拦截器都在队列靠前的位置)
         index = manuallyInceptorCount++;
         len = queue.length;
       } else {
+        // 将当前项目放入手动拦截器队列中
+        // 如果后面存在手动拦截器则将这个队列交由拦截器
         preManuallyQueue.push(item);
+        // 对于非手动拦截器来说
+        // 需要将队列中旧的元素与新创建的元素进行交换
+        queue[index] = item;
       }
 
       // 如果当前是错误拦截器
@@ -258,5 +267,5 @@ export function preProcess(
     }
   }
 
-  return innerInterceptorQueue;
+  return rawInterceptorQueue;
 }

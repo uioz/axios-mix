@@ -1,6 +1,6 @@
 import { AxiosInstance, AxiosPromise, AxiosRequestConfig, AxiosResponse } from "axios";
-import { ExtendInterceptorOptions } from "./interceptors";
-export declare type AxiosMixRequestConfig<R = any> = ExtendInterceptorOptions<R> & AxiosRequestConfig;
+import { OuterInterceptorOptions } from "./interceptors";
+export declare type AxiosMixRequestConfig<R = any> = OuterInterceptorOptions<R> & AxiosRequestConfig;
 export interface AxiosMixInstance extends AxiosInstance {
     (config: AxiosMixRequestConfig): AxiosPromise;
     (url: string, config?: AxiosMixRequestConfig): AxiosPromise;
@@ -18,13 +18,9 @@ export interface Options {
     retry?: any;
 }
 export interface ExtendAxiosInstance extends AxiosMixInstance {
-    extend(interceptors: ExtendInterceptorOptions<any>, options?: Options): ExtendAxiosInstance;
+    extend(interceptors: OuterInterceptorOptions<any>, options?: Options): ExtendAxiosInstance;
     inject: any;
     eject: any;
 }
-interface innerOption {
-    id?: number;
-    queue?: ExtendInterceptorOptions<any>;
-}
-declare function AxiosMix(axios: AxiosInstance, options?: Options & innerOption): ExtendAxiosInstance;
+declare function AxiosMix(axios: AxiosInstance, options?: Options): ExtendAxiosInstance;
 export default AxiosMix;
