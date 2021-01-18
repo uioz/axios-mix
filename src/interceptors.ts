@@ -7,21 +7,32 @@ import {
   ManuallyInterceptorType,
 } from "./executor";
 
-type NextHook = (data: any) => void;
+export type NextHook = (data: any) => void;
 
-export interface Interceptor<C> {
+export interface SyncInterceptor<C> {
   <T>(base: C): Promise<T> | Error | C;
+}
+
+export interface AsyncInterceptor<C> {
   <T>(base: C, next: NextHook): Promise<T> | Error | C;
+}
+
+export interface AsyncInterceptorWithParams<C> {
   <T>(base: C, next: NextHook, value: any): Promise<T> | Error | C;
 }
+
+export type Interceptor<C> =
+  | SyncInterceptor<C>
+  | AsyncInterceptor<C>
+  | AsyncInterceptorWithParams<C>;
 
 /**
  * 经过处理后的拦截器定义
  */
 export interface InterceptorProcessed<C> {
   interceptor: Interceptor<C>;
-  nextHandler: never;
-  nextErrorHandler: never;
+  nextHandler: unknown;
+  nextErrorHandler: unknown;
 }
 
 /**
@@ -46,21 +57,18 @@ export interface ManuallyInterceptor<C> {
 export interface ManuallyInterceptorProcessed<C>
   extends ManuallyInterceptor<C> {
   queue: Array<Interceptor<C>>;
-  nextHandler: never;
-  nextErrorHandler: never;
+  nextHandler: unknown;
+  nextErrorHandler: unknown;
 }
-
-export type ExtendInterceptorUnited<T> =
-  | Interceptor<T>
-  | ManuallyInterceptor<T>;
 
 /**
  * 该类型描述了拦截器的可赋值类型
  * T 泛型描述了拦截器首个参数
  */
 export type ExtendInterceptor<T> =
-  | ExtendInterceptorUnited<T>
-  | Array<ExtendInterceptorUnited<T>>;
+  | Interceptor<T>
+  | ManuallyInterceptor<T>
+  | Array<Interceptor<T> | ManuallyInterceptor<T>>;
 
 /**
  * 该接口描述了 axios-mix 支持外部参数的对象格式
@@ -100,7 +108,7 @@ export interface InnerInterceptorQueue {
   >;
 }
 
-function check(item: ExtendInterceptorUnited<any>) {
+function check(item: Interceptor<any> | ManuallyInterceptor<any>) {
   function checkArgs(args: number) {
     if (args > MAX_ARGS_OF_INTERCEPTOR) {
       throw new Error(
@@ -182,6 +190,7 @@ export function extend(extendInterceptors?: any, innerInterceptors?: any) {
 }
 
 /**
+ * TODO: 支持手动拦截器乱序, 而不是默认的在队列开头
  * 将特殊的非函数拦截器进行预处理.
  * @param extendInterceptors
  * @param innerInterceptors
@@ -197,7 +206,7 @@ export function preProcess(
     let index = 0;
     let len = queue.length;
 
-    if(len === 0){
+    if (len === 0) {
       continue;
     }
 

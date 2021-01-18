@@ -1,5 +1,6 @@
 import Axios, { AxiosRequestConfig } from "axios";
 import AxiosMix from "../src/index";
+import { NextHook } from "../src/interceptors";
 import MockAdapter from "axios-mock-adapter";
 
 let axios = AxiosMix(Axios);
@@ -10,10 +11,18 @@ mock.onGet("/users").reply(200, {
 });
 
 axios = axios.extend({
-  beforeRequest(config: AxiosRequestConfig) {
-    throw new Error();
-    // return config;
-  },
+  beforeRequest: [
+    function one(config: AxiosRequestConfig) {
+      return config;
+    },
+    function two(config: AxiosRequestConfig, next: NextHook) {
+      next(undefined);
+      return config;
+    },
+    function three(config, next, value) {
+      return config;
+    },
+  ],
 });
 
 // axios.extend({
