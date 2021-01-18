@@ -1,26 +1,23 @@
 import { AxiosRequestConfig, AxiosResponse } from "axios";
-declare type NextHook = (data: any) => void;
+export declare type NextHook = (data: any) => void;
 export interface Interceptor<C> {
-    <T>(base: C): Promise<T> | Error | C;
-    <T>(base: C, next: NextHook): Promise<T> | Error | C;
     <T>(base: C, next: NextHook, value: any): Promise<T> | Error | C;
 }
 export interface InterceptorProcessed<C> {
     interceptor: Interceptor<C>;
-    nextHandler: never;
-    nextErrorHandler: never;
+    nextHandler: InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>;
+    nextErrorHandler: InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>;
 }
 export interface ManuallyInterceptor<C> {
     manually: boolean;
-    interceptor<T>(queue: Array<Interceptor<C>>, next: NextHook): Promise<T> | Error | C;
+    interceptor<T>(queue: Array<InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>>, base: C, next: NextHook, value: any): Promise<T> | Error | C;
 }
 export interface ManuallyInterceptorProcessed<C> extends ManuallyInterceptor<C> {
     queue: Array<Interceptor<C>>;
-    nextHandler: never;
-    nextErrorHandler: never;
+    nextHandler: InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>;
+    nextErrorHandler: InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>;
 }
-export declare type ExtendInterceptorUnited<T> = Interceptor<T> | ManuallyInterceptor<T>;
-export declare type ExtendInterceptor<T> = ExtendInterceptorUnited<T> | Array<ExtendInterceptorUnited<T>>;
+export declare type ExtendInterceptor<T> = Interceptor<T> | ManuallyInterceptor<T> | Array<Interceptor<T> | ManuallyInterceptor<T>>;
 export interface OuterInterceptorOptions<R> {
     beforeRequest?: ExtendInterceptor<AxiosRequestConfig>;
     afterResponse?: ExtendInterceptor<AxiosResponse<R>>;
@@ -44,4 +41,3 @@ export declare function extend(interceptorOption: OuterInterceptorOptions<any>):
 export declare function extend(extendInterceptors: RawInterceptorQueue, innerInterceptors: RawInterceptorQueue): RawInterceptorQueue;
 export declare function extend(extendInterceptors: InnerInterceptorQueue, innerInterceptors: InnerInterceptorQueue): InnerInterceptorQueue;
 export declare function preProcess(rawInterceptorQueue: RawInterceptorQueue): InnerInterceptorQueue;
-export {};

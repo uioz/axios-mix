@@ -9,30 +9,19 @@ import {
 
 export type NextHook = (data: any) => void;
 
-export interface SyncInterceptor<C> {
-  <T>(base: C): Promise<T> | Error | C;
-}
-
-export interface AsyncInterceptor<C> {
-  <T>(base: C, next: NextHook): Promise<T> | Error | C;
-}
-
-export interface AsyncInterceptorWithParams<C> {
+export interface Interceptor<C> {
   <T>(base: C, next: NextHook, value: any): Promise<T> | Error | C;
 }
-
-export type Interceptor<C> =
-  | SyncInterceptor<C>
-  | AsyncInterceptor<C>
-  | AsyncInterceptorWithParams<C>;
 
 /**
  * 经过处理后的拦截器定义
  */
 export interface InterceptorProcessed<C> {
   interceptor: Interceptor<C>;
-  nextHandler: unknown;
-  nextErrorHandler: unknown;
+  nextHandler: InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>;
+  nextErrorHandler:
+    | InterceptorProcessed<any>
+    | ManuallyInterceptorProcessed<any>;
 }
 
 /**
@@ -45,8 +34,10 @@ export interface ManuallyInterceptor<C> {
    */
   manually: boolean;
   interceptor<T>(
-    queue: Array<Interceptor<C>>,
-    next: NextHook
+    queue: Array<InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>>,
+    base: C,
+    next: NextHook,
+    value: any
   ): Promise<T> | Error | C;
 }
 
@@ -57,8 +48,10 @@ export interface ManuallyInterceptor<C> {
 export interface ManuallyInterceptorProcessed<C>
   extends ManuallyInterceptor<C> {
   queue: Array<Interceptor<C>>;
-  nextHandler: unknown;
-  nextErrorHandler: unknown;
+  nextHandler: InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>;
+  nextErrorHandler:
+    | InterceptorProcessed<any>
+    | ManuallyInterceptorProcessed<any>;
 }
 
 /**
