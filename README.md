@@ -402,20 +402,18 @@ request
 
 ### 手动拦截器与拦截器队列参数
 
-拦截器是可以继承的, 简单来讲通过 `axios-mix` 实例的 `extend` 方法, 它可以复用当前 `axios-mix` 实例的配置然后生成一个新的实例, 这样做会将多个同一类型的拦截器放置到队列中执行.
-
-有时候我们不想按照 `axios-mix` 默认的执行顺序来触发拦截器, 而想手动控制拦截器的执行流程, 这个时候我们可以用一个对象将拦截器(函数)包裹起来:
+手动拦截器可以在 `axios.get` 或者 `axios.post` 等请求方法提供的拦截器中定义:
 
 ```javascript
-{
-  intercpetor:function(queue){},
-  manually:true
-}
+axiosMix.get("url", {
+  beforeRequest: {
+    intercpetor: function (queue, config, next, value) {},
+    manually: true,
+  },
+});
 ```
 
-这样在当前定义的 `intercpetor` 所对应的拦截器的第一个参数将会是 `queue` 它存放了当前拦截器之前的所有非手动拦截器的列表, 这样你就可以手动控制这些拦截器的执行.
-
-**注意**:`axios-mix` 会假设你定义的函数的首个参数是 `queue` 然后通过剩余的参数来判断你的拦截器类型.
+手动拦截器被设计用于打破固定的执行顺序的时候使用, 在这个拦截器前的所有其他拦截器将会作为手动拦截器的首个参数, 例如基于 `extend` 或者作为请求选项的队列.
 
 例子, 假设存在如下队列:
 
@@ -432,11 +430,13 @@ request
 
 第三个手动拦截器的 `queue` 将包含第一个和第二个拦截器, 第六个手动拦截器会包含第四个和第五个拦截器.
 
-**注意**: 虽然手动拦截器在所有的请求方法(`get` `post` 等)和 `axiosMix.extend` 中都可以使用, 但是无论如何手动拦截器都应该是你最后的自由控制的手段, 不可以过分的依赖它.
+手动拦截器不能在 `extend` 方法中使用, 如果尝试将手动拦截器传入 `extend` 方法中会抛出一个错误.
+
+<!-- TODO: extend 改为 merge 而 extend 则用于基于当前 axios 配置和 axiosMix 通过传入的 axios 实例将拦截写入到该 axios 实例上 -->
 
 ### 手动拦截器参数
 
-和普通拦截器一样, 手动拦截器的首个参数被替换为了 `queue`:
+手动拦截器的首个参数被替换为了 `queue`, 剩余的参数顺序和含义和普通的拦截器定义一致:
 
 ```javascript
 function (queue,config) {};
@@ -444,7 +444,16 @@ function (queue,config,next) {};
 function (queue,config,next,value) {};
 ```
 
-`queue` 参数如果经由 `extend` 处理过后数组中的每一个元素将会变为对象, 通过 `interceptor` 属性获取拦截器, 之所以变为了对象因为经过 `extend` 的队列会经过一层预编译, 以提升请求时的拦截器查找速度.
+`queue` 存放该手动拦截器前的所有拦截器, 这些拦截器在内部经过编译处理, 队列中的所有的元素是对象而不是一开始由用户传入的函数, 该对象定义如下:
+
+```javascript
+{
+  interceptor:function(){}, // 拦截器本身, 由用户传入
+  nextHandler:function(){}, // 下一个拦截器, undefined 则表示最后一个拦截器
+  nextErrorHandler:function(){}, // 下一个带参拦截器, undefined 则表示最后一个拦截器
+  manually:false, // 该属性也可能不存在和 false 一样均表示非手动拦截器
+}
+```
 
 ## 拦截器的上下文绑定
 
