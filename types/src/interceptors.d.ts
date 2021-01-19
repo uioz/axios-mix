@@ -40,4 +40,4 @@ export declare function extend(): RawInterceptorQueue;
 export declare function extend(interceptorOption: OuterInterceptorOptions<any>): RawInterceptorQueue;
 export declare function extend(extendInterceptors: RawInterceptorQueue, innerInterceptors: RawInterceptorQueue): RawInterceptorQueue;
 export declare function extend(extendInterceptors: InnerInterceptorQueue, innerInterceptors: InnerInterceptorQueue): InnerInterceptorQueue;
-export declare function preProcess(rawInterceptorQueue: RawInterceptorQueue): InnerInterceptorQueue;
+export declare function preProcess(interceptors: RawInterceptorQueue, handleManually?: boolean): InnerInterceptorQueue;

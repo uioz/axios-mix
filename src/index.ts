@@ -100,7 +100,12 @@ function AxiosMix(axios: AxiosInstance, options?: Options) {
   }
 
   function beforeRequestMixin(config: any, beforeRequest: any) {
+    if (beforeRequest) {
+      beforeRequest = preProcess(extend({ beforeRequest }), true);
+    }
+
     config._beforeRequestHandler = function (config: any) {
+      console.log(beforeRequest);
       // TODO: 合并 config 传入的 beforeRequest
       return executor.beforeRequest(interceptorsQueue.beforeRequest, config);
     };

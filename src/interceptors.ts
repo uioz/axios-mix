@@ -47,7 +47,7 @@ export interface ManuallyInterceptor<C> {
  */
 export interface ManuallyInterceptorProcessed<C>
   extends ManuallyInterceptor<C> {
-  queue: Array<Interceptor<C>>;
+  queue: Array<InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>>;
   nextHandler: InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>;
   nextErrorHandler:
     | InterceptorProcessed<any>
@@ -183,18 +183,18 @@ export function extend(extendInterceptors?: any, innerInterceptors?: any) {
 }
 
 /**
- * TODO: 支持手动拦截器乱序, 而不是默认的在队列开头
  * 将特殊的非函数拦截器进行预处理.
- * @param extendInterceptors
- * @param innerInterceptors
+ * @param interceptors 拦截器对象
+ * @param handleManually 是否处理手动拦截器
  */
 export function preProcess(
-  rawInterceptorQueue: RawInterceptorQueue
+  interceptors: RawInterceptorQueue,
+  handleManually: boolean = false
 ): InnerInterceptorQueue {
-  for (const key of Object.keys(rawInterceptorQueue) as Array<
+  for (const key of Object.keys(interceptors) as Array<
     keyof RawInterceptorQueue
   >) {
-    const queue = rawInterceptorQueue[key];
+    const queue = interceptors[key];
 
     let index = 0;
     let len = queue.length;
@@ -205,19 +205,46 @@ export function preProcess(
 
     let prevItem;
     let preErrorQueue = [];
+    let preManuallyQueue = [];
+    let manuallyInceptorCount = 0;
 
     while (index < len) {
-      if (isManually(queue[index])) {
+      const IsManually = isManually(queue[index]);
+
+      if (!handleManually && IsManually) {
         throw new Error("AxiosMix.extend doesn't handle Manually Interceptor!");
       }
 
-      const item = {
-        interceptor: queue[index],
-        nextHandler: undefined,
-        nextErrorHandler: undefined,
-      };
+      const item = (IsManually
+        ? queue[index]
+        : {
+            interceptor: queue[index],
+            nextHandler: undefined,
+            nextErrorHandler: undefined,
+          }) as InterceptorProcessed<any> & ManuallyInterceptorProcessed<any>;
 
-      queue[index] = item;
+      if (IsManually) {
+        // 将 else 部分保存的元素移动到 queue 中
+        item.queue = preManuallyQueue as any;
+        // 将扫描过的内容替换为当前的元素
+        // splice 的第二个参数最小值是 1 而 while 循环是从 0 开始的
+        // 所以需要 + 1
+        queue.splice(manuallyInceptorCount, index + 1, item);
+        preManuallyQueue = [];
+        // 由于数组本身被修改了, 所以重置 index 和 len
+        // index 获取 manuallyInceptorCount 未自增前的值
+        // 本次循环结束的 index++ 的值将会和 manuallyInceptorCount++ 相同
+        // 这样做会让下次循环跳过队列中的手动拦截器(所有的拦截器都在队列靠前的位置)
+        index = manuallyInceptorCount++;
+        len = queue.length;
+      } else {
+        // 将当前项目放入手动拦截器队列中
+        // 如果后面存在手动拦截器则将这个队列交由拦截器
+        preManuallyQueue.push(item);
+        // 对于非手动拦截器来说
+        // 需要将队列中旧的元素与新创建的元素进行交换
+        queue[index] = item;
+      }
 
       // 如果有上次循环的元素
       // 则写入到当前元素的 handler 中
@@ -227,7 +254,11 @@ export function preProcess(
 
       // 如果当前是错误拦截器
       // 则将之前存储的所有拦截器的引用指向自己
-      if (InterceptorType.IS_ASYNC_CATCH === item.interceptor.length) {
+      if (
+        IsManually
+          ? ManuallyInterceptorType.IS_ASYNC_CATCH === item.interceptor.length
+          : InterceptorType.IS_ASYNC_CATCH === item.interceptor.length
+      ) {
         for (const prevItem of preErrorQueue) {
           prevItem.nextErrorHandler = item;
         }
@@ -243,88 +274,89 @@ export function preProcess(
     }
   }
 
-  return rawInterceptorQueue as InnerInterceptorQueue;
+  return interceptors as InnerInterceptorQueue;
 }
-// export function preProcess(
-//   rawInterceptorQueue: RawInterceptorQueue
-// ): InnerInterceptorQueue {
-//   for (const key of Object.keys(rawInterceptorQueue) as Array<
-//     keyof RawInterceptorQueue
-//   >) {
-//     const queue = rawInterceptorQueue[key];
 
-//     let index = 0;
-//     let len = queue.length;
+function searchInterceptorWithCatch(nextQueue:Array<
+  InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>
+>) {
+  
+  let outerIndex = 0,outerLen = nextQueue.length;
+  while (outerIndex < outerLen) {
 
-//     if (len === 0) {
-//       continue;
-//     }
+    if(isManually(nextQueue[outerIndex])){
+      // TODO: 
+    }
+    
+    outerIndex++;
+  }
 
-//     let prevItem;
-//     let preErrorQueue = [];
-//     let preManuallyQueue = [];
-//     let manuallyInceptorCount = 0;
+}
 
-//     while (index < len) {
-//       const IsManually = isManually(queue[index]);
-//       const item = IsManually
-//         ? queue[index]
-//         : {
-//             interceptor: queue[index],
-//             nextHandler: undefined,
-//             nextErrorHandler: undefined,
-//           };
+/**
+ * 将两个拦截器队列进行合并生成一个新的队列
+ * 被修改的元素会经过一层浅拷贝, 不会修改原有的属性
+ * @param prevQueue 要合并的首个队列
+ * @param nextQueue 和合并的第二个队列
+ */
+export function combineInterceptorQueue(
+  prevQueue: Array<
+    InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>
+  >,
+  nextQueue: Array<
+    InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>
+  >
+): Array<InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>> {
+  
+  let prevQueueCopy;
+  // 如果下一个队列首个元素是手动拦截器
+  // 则查询该拦截器的 queue 属性
+  const searchQueue = isManually(nextQueue[0]) ? nextQueue[0].queue : nextQueue;
+  // 在下一个队列中查询带参拦截器的下标
+  const IndexOfInterceptorWithCatch = searchQueue.findIndex((item) =>
+    isManually(item)
+      ? ManuallyInterceptorType.IS_ASYNC_CATCH === item.interceptor.length
+      : InterceptorType.IS_ASYNC_CATCH === item.interceptor.length
+  );
 
-//       // 如果有上次循环的元素
-//       // 则写入到当前元素的 handler 中
-//       if (prevItem) {
-//         prevItem.nextHandler = item;
-//       }
+  if (IndexOfInterceptorWithCatch !== -1) {
+    let len = prevQueue.length,
+      tempQueue = [];
+    while (len--) {
+      // 逆序查找没有 nextErrorHandler 的拦截器
+      // 将这些拦截器 nextErrorHandler 指向下一个队列中的带参拦截器
+      // 然后收集到一个临时数组中
+      if (prevQueue[len].nextErrorHandler === undefined) {
+        tempQueue.unshift({
+          ...prevQueue[len],
+          nextErrorHandler: searchQueue[IndexOfInterceptorWithCatch],
+        });
+      } else {
+        break;
+      }
+    }
 
-//       if (IsManually) {
-//         // 将 else 部分保存的元素移动到 queue 中
-//         item.queue = preManuallyQueue;
-//         // 将扫描过的内容替换为当前的元素
-//         // splice 的第二个参数最小值是 1 而 while 循环是从 0 开始的
-//         // 所以需要 + 1
-//         queue.splice(manuallyInceptorCount, index + 1, item);
-//         preManuallyQueue = [];
-//         // 由于数组本身被修改了, 所以重置 index 和 len
-//         // index 获取 manuallyInceptorCount 未自增前的值
-//         // 本次循环结束的 index++ 的值将会和 manuallyInceptorCount++ 相同
-//         // 这样做会让下次循环跳过队列中的手动拦截器(所有的拦截器都在队列靠前的位置)
-//         index = manuallyInceptorCount++;
-//         len = queue.length;
-//       } else {
-//         // 将当前项目放入手动拦截器队列中
-//         // 如果后面存在手动拦截器则将这个队列交由拦截器
-//         preManuallyQueue.push(item);
-//         // 对于非手动拦截器来说
-//         // 需要将队列中旧的元素与新创建的元素进行交换
-//         queue[index] = item;
-//       }
+    // 截取首个数组中未发生变化的部分
+    // 在连接临时数组
+    prevQueueCopy = prevQueue.slice(0, len).concat(tempQueue);
+    prevQueueCopy[prevQueueCopy.length - 1].nextHandler = searchQueue[0];
+  } else {
+    // 如果下一个队列中没有带参拦截器
+    // 则首个队列去除最后一个元素与
+    // 重写 nextHandler 的最后一个元素进行合并
+    prevQueueCopy = prevQueue.slice(0, prevQueue.length - 1).concat({
+      ...prevQueue[prevQueue.length - 1],
+      nextHandler: nextQueue[0],
+    });
+  }
 
-//       // 如果当前是错误拦截器
-//       // 则将之前存储的所有拦截器的引用指向自己
-//       if (
-//         IsManually
-//           ? ManuallyInterceptorType.IS_ASYNC_CATCH === item.interceptor.length
-//           : InterceptorType.IS_ASYNC_CATCH === item.interceptor.length
-//       ) {
-//         for (const prevItem of preErrorQueue) {
-//           prevItem.nextErrorHandler = item;
-//         }
-//         preErrorQueue = [];
-//       }
-//       //
-//       preErrorQueue.push(item);
+  if (isManually(nextQueue[0])) {
+    const tempManually = {
+      ...nextQueue[0],
+    };
 
-//       // 将之前的元素指向自己
-//       prevItem = item;
+    tempManually.queue = prevQueueCopy.concat(tempManually.queue);
+  }
 
-//       index++;
-//     }
-//   }
-
-//   return rawInterceptorQueue;
-// }
+  return prevQueue;
+}

@@ -1,4 +1,4 @@
-import Axios, { AxiosRequestConfig } from "axios";
+import Axios from "axios";
 import AxiosMix from "../src/index";
 import MockAdapter from "axios-mock-adapter";
 
@@ -175,6 +175,15 @@ axios = axios.extend({
 //     debugger;
 //   });
 
-axios.get("/users").then(function (response) {
-  console.log(response.data);
-});
+axios
+  .get("/users", {
+    beforeRequest: {
+      manually: true,
+      interceptor(queue, config) {
+        return config;
+      },
+    },
+  })
+  .then(function (response) {
+    console.log(response.data);
+  });
