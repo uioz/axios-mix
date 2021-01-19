@@ -95,7 +95,6 @@ request.extend(
   {
     beforeRequest: () => {},
     afterResponse: () => {},
-    failHandler: () => {},
     errorHandler: () => {},
   },
   {
@@ -123,7 +122,6 @@ request.extend(
       },
     ],
     afterResponse: function (config) {},
-    failHandler: function (config, next) {},
     errorHandler: function (config, next, value) {},
   },
   {
@@ -253,7 +251,7 @@ request.get("/user", {
 
 ### 局部错误拦截器(failHandler)
 
-**建议**: 只将 failHandler 用在局部的错误处理上, 最好是只针对当前请求有效的错误拦截.
+**警告**: failHandler 只能用在局部的错误处理上无法通过 `extend` 方法进行继承.
 
 错误拦截器和前置后置拦截器有很多相似的地方, 首个区别就是拦截器第一个参数不同, 我们有很多类型的错误:
 
