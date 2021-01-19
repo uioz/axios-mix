@@ -9,6 +9,37 @@ mock.onGet("/users").reply(200, {
   users: [{ id: 1, name: "John Smith" }],
 });
 
+// 基本扩展 1
+axios = axios.extend({
+  beforeRequest: function con(config) {
+    return config;
+  },
+});
+
+// 基本扩展 2
+// axios.extend({
+//   beforeRequest: [
+//     function one(config, next) {
+//       return config;
+//     },
+//     function two(config, next, value) {
+//       return config;
+//     },
+//   ],
+// });
+
+// extend 方法不支持手动拦截器 pass
+// axios = axios.extend({
+//   beforeRequest: [
+//     {
+//       manually: true,
+//       interceptor(queue: any, config: AxiosRequestConfig) {
+//         return config;
+//       },
+//     },
+//   ],
+// });
+
 // 最后一个是手动拦截器 pass
 // axios = axios.extend({
 //   beforeRequest: [
@@ -91,12 +122,26 @@ mock.onGet("/users").reply(200, {
 //   ],
 // });
 
-// axios.extend({
-//   beforeRequest:function con {
-
-//     return config
-//   }
-// })
+// 连续两个手动拦截器(第二个带参) pass
+// axios = axios.extend({
+//   beforeRequest: [
+//     function one(config: AxiosRequestConfig) {
+//       return config;
+//     },
+//     {
+//       manually: true,
+//       interceptor(queue, config) {
+//         return config;
+//       },
+//     },
+//     {
+//       manually: true,
+//       interceptor(queue, config, next, value) {
+//         return config;
+//       },
+//     },
+//   ],
+// });
 
 // axios.interceptors.request.use(
 //   function (config) {

@@ -205,18 +205,19 @@ export function preProcess(
 
     let prevItem;
     let preErrorQueue = [];
-    let preManuallyQueue = [];
-    let manuallyInceptorCount = 0;
 
     while (index < len) {
-      const IsManually = isManually(queue[index]);
-      const item = IsManually
-        ? queue[index]
-        : {
-            interceptor: queue[index],
-            nextHandler: undefined,
-            nextErrorHandler: undefined,
-          };
+      if (isManually(queue[index])) {
+        throw new Error("AxiosMix.extend doesn't handle Manually Interceptor!");
+      }
+
+      const item = {
+        interceptor: queue[index],
+        nextHandler: undefined,
+        nextErrorHandler: undefined,
+      };
+
+      queue[index] = item;
 
       // 如果有上次循环的元素
       // 则写入到当前元素的 handler 中
@@ -224,36 +225,9 @@ export function preProcess(
         prevItem.nextHandler = item;
       }
 
-      if (IsManually) {
-        // 将 else 部分保存的元素移动到 queue 中
-        item.queue = preManuallyQueue;
-        // 将扫描过的内容替换为当前的元素
-        // splice 的第二个参数最小值是 1 而 while 循环是从 0 开始的
-        // 所以需要 + 1
-        queue.splice(manuallyInceptorCount, index + 1, item);
-        preManuallyQueue = [];
-        // 由于数组本身被修改了, 所以重置 index 和 len
-        // index 获取 manuallyInceptorCount 未自增前的值
-        // 本次循环结束的 index++ 的值将会和 manuallyInceptorCount++ 相同
-        // 这样做会让下次循环跳过队列中的手动拦截器(所有的拦截器都在队列靠前的位置)
-        index = manuallyInceptorCount++;
-        len = queue.length;
-      } else {
-        // 将当前项目放入手动拦截器队列中
-        // 如果后面存在手动拦截器则将这个队列交由拦截器
-        preManuallyQueue.push(item);
-        // 对于非手动拦截器来说
-        // 需要将队列中旧的元素与新创建的元素进行交换
-        queue[index] = item;
-      }
-
       // 如果当前是错误拦截器
       // 则将之前存储的所有拦截器的引用指向自己
-      if (
-        IsManually
-          ? ManuallyInterceptorType.IS_ASYNC_CATCH === item.interceptor.length
-          : InterceptorType.IS_ASYNC_CATCH === item.interceptor.length
-      ) {
+      if (InterceptorType.IS_ASYNC_CATCH === item.interceptor.length) {
         for (const prevItem of preErrorQueue) {
           prevItem.nextErrorHandler = item;
         }
@@ -269,5 +243,88 @@ export function preProcess(
     }
   }
 
-  return rawInterceptorQueue;
+  return rawInterceptorQueue as InnerInterceptorQueue;
 }
+// export function preProcess(
+//   rawInterceptorQueue: RawInterceptorQueue
+// ): InnerInterceptorQueue {
+//   for (const key of Object.keys(rawInterceptorQueue) as Array<
+//     keyof RawInterceptorQueue
+//   >) {
+//     const queue = rawInterceptorQueue[key];
+
+//     let index = 0;
+//     let len = queue.length;
+
+//     if (len === 0) {
+//       continue;
+//     }
+
+//     let prevItem;
+//     let preErrorQueue = [];
+//     let preManuallyQueue = [];
+//     let manuallyInceptorCount = 0;
+
+//     while (index < len) {
+//       const IsManually = isManually(queue[index]);
+//       const item = IsManually
+//         ? queue[index]
+//         : {
+//             interceptor: queue[index],
+//             nextHandler: undefined,
+//             nextErrorHandler: undefined,
+//           };
+
+//       // 如果有上次循环的元素
+//       // 则写入到当前元素的 handler 中
+//       if (prevItem) {
+//         prevItem.nextHandler = item;
+//       }
+
+//       if (IsManually) {
+//         // 将 else 部分保存的元素移动到 queue 中
+//         item.queue = preManuallyQueue;
+//         // 将扫描过的内容替换为当前的元素
+//         // splice 的第二个参数最小值是 1 而 while 循环是从 0 开始的
+//         // 所以需要 + 1
+//         queue.splice(manuallyInceptorCount, index + 1, item);
+//         preManuallyQueue = [];
+//         // 由于数组本身被修改了, 所以重置 index 和 len
+//         // index 获取 manuallyInceptorCount 未自增前的值
+//         // 本次循环结束的 index++ 的值将会和 manuallyInceptorCount++ 相同
+//         // 这样做会让下次循环跳过队列中的手动拦截器(所有的拦截器都在队列靠前的位置)
+//         index = manuallyInceptorCount++;
+//         len = queue.length;
+//       } else {
+//         // 将当前项目放入手动拦截器队列中
+//         // 如果后面存在手动拦截器则将这个队列交由拦截器
+//         preManuallyQueue.push(item);
+//         // 对于非手动拦截器来说
+//         // 需要将队列中旧的元素与新创建的元素进行交换
+//         queue[index] = item;
+//       }
+
+//       // 如果当前是错误拦截器
+//       // 则将之前存储的所有拦截器的引用指向自己
+//       if (
+//         IsManually
+//           ? ManuallyInterceptorType.IS_ASYNC_CATCH === item.interceptor.length
+//           : InterceptorType.IS_ASYNC_CATCH === item.interceptor.length
+//       ) {
+//         for (const prevItem of preErrorQueue) {
+//           prevItem.nextErrorHandler = item;
+//         }
+//         preErrorQueue = [];
+//       }
+//       //
+//       preErrorQueue.push(item);
+
+//       // 将之前的元素指向自己
+//       prevItem = item;
+
+//       index++;
+//     }
+//   }
+
+//   return rawInterceptorQueue;
+// }

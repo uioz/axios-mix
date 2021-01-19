@@ -76,79 +76,101 @@ export interface ExtendAxiosInstance extends AxiosMixInstance {
   eject: any;
 }
 
-function MarkIdOnConfig(config: any, id: number) {
-  if (config) {
-    config._id = id;
-  } else {
-    config = { _id: id };
-  }
-  return config;
-}
-
 function AxiosMix(axios: AxiosInstance, options?: Options) {
   interface innerOption {
-    id: number;
+    _extend?: boolean;
     queue: InnerInterceptorQueue;
   }
 
   const interceptorsQueue: InnerInterceptorQueue =
     (options as innerOption)?.queue ?? extend();
 
-  // 配置当前作用域的唯一 ID
-  // 唯一 ID 是由外部传入的
-  // 如果没有唯一 ID 则初始化为 1
-  const id =
-    typeof (options as innerOption)?.id === "number"
-      ? (options as innerOption).id
-      : 1;
-
-  axios.interceptors.request.use(function (config: any) {
-    // extend 作用域 id 和请求 id 不一致不拦截
-    if (config._id !== id) {
-      return config;
-    }
-
-    return executor.beforeRequest(interceptorsQueue.beforeRequest, config);
-  });
-
-  axios.interceptors.response.use(
-    function (response: any) {
-      // extend 作用域 id 和请求 id 不一致不拦截
-      if (response.config._id !== id) {
-        return response;
+  if (!(options as innerOption)?._extend) {
+    axios.interceptors.request.use(function (config: any) {
+      return config?._beforeRequestHandler(config) ?? config;
+    });
+    axios.interceptors.response.use(
+      function (response: any) {
+        return response?.config?._afterResponseHandler(response) ?? response;
+      },
+      function (error: any) {
+        return error?.config?._errorHandler(error) ?? error;
       }
+    );
+  }
 
+  function beforeRequestMixin(config: any, beforeRequest: any) {
+    config._beforeRequestHandler = function (config: any) {
+      // TODO: 合并 config 传入的 beforeRequest
+      return executor.beforeRequest(interceptorsQueue.beforeRequest, config);
+    };
+  }
+
+  function afterResponseMixin(config: any, afterResponse: any) {
+    config._afterResponseHandler = function (response: any) {
       return response;
-    },
-    function (error: any) {
-      // extend 作用域 id 和请求 id 不一致不拦截
-      if (error.config._id !== id) {
-        return error;
-      }
+    };
+  }
 
+  function errorMixin(config: any, failHandler: any, errorHandler: any) {
+    config._errorHandler = function (error: any) {
       return error;
-    }
-  );
+    };
+  }
 
   return new Proxy<ExtendAxiosInstance>(axios as any, {
     get(target, key) {
       switch (key) {
         case "request":
-          return function (config: any) {
-            return target[key](MarkIdOnConfig(config, id));
+          return function ({
+            beforeRequest,
+            afterResponse,
+            failHandler,
+            errorHandler,
+            ...rest
+          }: any = {}) {
+            beforeRequestMixin(rest, beforeRequest);
+            afterResponseMixin(rest, afterResponse);
+            errorMixin(rest, failHandler, errorHandler);
+            return target[key](rest);
           };
         case "get":
         case "delete":
         case "head":
         case "options":
-          return function (url: any, config: any) {
-            return target[key](url, MarkIdOnConfig(config, id));
+          return function (
+            url: any,
+            {
+              beforeRequest,
+              afterResponse,
+              failHandler,
+              errorHandler,
+              ...rest
+            }: any = {}
+          ) {
+            beforeRequestMixin(rest, beforeRequest);
+            afterResponseMixin(rest, afterResponse);
+            errorMixin(rest, failHandler, errorHandler);
+            return target[key](url, rest);
           };
         case "post":
         case "put":
         case "patch":
-          return function (url: any, data: any, config: any) {
-            return target[key](url, data, MarkIdOnConfig(config, id));
+          return function (
+            url: any,
+            data: any,
+            {
+              beforeRequest,
+              afterResponse,
+              failHandler,
+              errorHandler,
+              ...rest
+            }: any = {}
+          ) {
+            beforeRequestMixin(rest, beforeRequest);
+            afterResponseMixin(rest, afterResponse);
+            errorHandler(rest, failHandler, errorHandler);
+            return target[key](url, data, rest);
           };
         case "extend":
           return function (
@@ -159,9 +181,8 @@ function AxiosMix(axios: AxiosInstance, options?: Options) {
               ...options,
               ...o,
               // @ts-ignore
-              //    内外合并 预处理   统一外部格式
-              queue: extend(preProcess(extend(interceptor)), interceptorsQueue),
-              id: id + 1,
+              queue: preProcess(extend(interceptor, interceptorsQueue)),
+              _extend: true,
             });
           };
         default:
