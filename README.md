@@ -163,7 +163,7 @@ request.get("/user", {
 
 ```javascript
 request.get("/user", {
-  beforeRequest: [function (config) {}],
+  beforeRequest: [function (config) {}, function (config) {}],
 });
 ```
 
@@ -340,15 +340,13 @@ request.get("/user", {
 });
 ```
 
-错误拦截器主要的目的是处理错误, 所以没有主动抛出错误的设计, 所以原本在前置后置拦截器中的错误处理在此处的含义完全不同.
+局部错误拦截器主要的目的是处理错误, 所以没有主动抛出错误的设计, 所以原本在前置后置拦截器中的错误处理在此处的含义完全不同.
 
 - `Promise.resolve()` 定义和前置拦截器相同
 - `Promise.reject()` 定义和前置拦截器相同
-- `new Error("do something")` 拦截器本身错误或者超出该拦截器的处理范围, 相当于 `Promise.reject(new Error("do something"))`
+- `new Error("do something")` 拦截器本身错误或者超出该拦截器的处理范围, 相当于 `next(new Error("do something"))`
 
-虽然基于上述的操作可以控制 `axios-mix` 执行的流程, 但是使用前必须仔细考虑, 因为一旦使用上述规则就意味着后续的错误拦截器将无法执行.
-
-局部错误拦截器的异步版本的执行规则和前置后置拦截器相同, 同时请不要忘记如果异步拦截器先 `return` 且符合 `failHandler` 的同步版本的返回值的定义则执行同步流程, 这会导致后续的拦截器彻底无法执行:
+局部错误拦截器的异步版本的执行规则和前置/后置拦截器相同, 上述的操作可以控制错误执行的流程, 但是使用前必须仔细考虑, 因为这会影响后续的拦截器执行, 下方的第二个拦截器同步返回了一个值导致整个请求结束, 那么后续的错误拦截无法执行.
 
 ```javascript
 request.get("/user", {
@@ -358,7 +356,7 @@ request.get("/user", {
     },
     function (error, next, value) {
       console.log(value); // hello world
-      return Promise.resolve();
+      return Promise.resolve("success");
     },
     function (error, next, value) {
       // 这里不会执行, 因为上一个拦截器的 `Promise.resolve()` 已经将整个请求完成
@@ -373,8 +371,7 @@ request.get("/user", {
 
 - 如果 `next` 提供的参数, 那么交由 `errorHandler` 的参数就是 `next` 传入的值
 - 如果 `next` 没有提供参数, 那么交由 `errorHandler` 的参数就是原本的错误
-
-如果没有使用异步拦截器则交由 `errorHandler` 的参数就是原本的错误.
+- 如果 `failHandler` 不存在则 `errorHandler` 将会直接拿到错误
 
 ### 全局错误拦截器(errorHandler)
 
