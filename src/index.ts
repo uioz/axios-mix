@@ -12,6 +12,7 @@ import {
   extend,
   InnerInterceptorQueue,
   preProcess,
+  combineInterceptorQueue,
 } from "./interceptors";
 
 export type AxiosMixRequestConfig<R = any> = OuterInterceptorOptions<R> &
@@ -101,13 +102,20 @@ function AxiosMix(axios: AxiosInstance, options?: Options) {
 
   function beforeRequestMixin(config: any, beforeRequest: any) {
     if (beforeRequest) {
-      beforeRequest = preProcess(extend({ beforeRequest }), true);
+      // 需要将外部传入的 Raw 进行预处理
+      beforeRequest = preProcess(extend({ beforeRequest }), true).beforeRequest;
     }
 
     config._beforeRequestHandler = function (config: any) {
-      console.log(beforeRequest);
-      // TODO: 合并 config 传入的 beforeRequest
-      return executor.beforeRequest(interceptorsQueue.beforeRequest, config);
+      return executor.beforeRequest(
+        beforeRequest
+          ? combineInterceptorQueue(
+              interceptorsQueue.beforeRequest,
+              beforeRequest
+            )
+          : interceptorsQueue.beforeRequest,
+        config
+      );
     };
   }
 

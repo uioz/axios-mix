@@ -13,7 +13,7 @@ export interface ManuallyInterceptor<C> {
     interceptor<T>(queue: Array<InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>>, base: C, next: NextHook, value: any): Promise<T> | Error | C;
 }
 export interface ManuallyInterceptorProcessed<C> extends ManuallyInterceptor<C> {
-    queue: Array<Interceptor<C>>;
+    queue: Array<InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>>;
     nextHandler: InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>;
     nextErrorHandler: InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>;
 }
@@ -41,3 +41,4 @@ export declare function extend(interceptorOption: OuterInterceptorOptions<any>):
 export declare function extend(extendInterceptors: RawInterceptorQueue, innerInterceptors: RawInterceptorQueue): RawInterceptorQueue;
 export declare function extend(extendInterceptors: InnerInterceptorQueue, innerInterceptors: InnerInterceptorQueue): InnerInterceptorQueue;
 export declare function preProcess(interceptors: RawInterceptorQueue, handleManually?: boolean): InnerInterceptorQueue;
+export declare function combineInterceptorQueue(prevQueue: Array<InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>>, nextQueue: Array<InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>>): Array<InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>>;

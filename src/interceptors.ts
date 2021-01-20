@@ -181,7 +181,7 @@ export function extend(extendInterceptors?: any, innerInterceptors?: any) {
 
   return data;
 }
-
+type a = Pick;
 /**
  * 将特殊的非函数拦截器进行预处理.
  * @param interceptors 拦截器对象
@@ -264,7 +264,7 @@ export function preProcess(
         }
         preErrorQueue = [];
       }
-      //
+
       preErrorQueue.push(item);
 
       // 将之前的元素指向自己
@@ -277,25 +277,57 @@ export function preProcess(
   return interceptors as InnerInterceptorQueue;
 }
 
-function searchInterceptorWithCatch(nextQueue:Array<
-  InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>
->) {
-  
-  let outerIndex = 0,outerLen = nextQueue.length;
+/**
+ * 从给定的队列中找到第一个带参拦截器
+ * @param nextQueue
+ */
+function searchInterceptorWithCatch(
+  nextQueue: Array<
+    InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>
+  >
+) {
+  let outerIndex = 0,
+    outerLen = nextQueue.length;
   while (outerIndex < outerLen) {
+    const temp = nextQueue[outerIndex];
 
-    if(isManually(nextQueue[outerIndex])){
-      // TODO: 
+    if (isManually(temp)) {
+      let innerIndex = 0,
+        innerLen = temp.queue.length;
+
+      // 如果手动拦截器的 queue 的长度为 0
+      // 则判断手动拦截器本身是否带参拦截器
+      if (innerLen === 0) {
+        if (
+          temp.interceptor.length === ManuallyInterceptorType.IS_ASYNC_CATCH
+        ) {
+          return temp;
+        }
+        outerIndex++;
+        continue;
+      }
+
+      while (innerIndex < innerLen) {
+        if (
+          temp.queue[innerIndex].interceptor.length ===
+          ManuallyInterceptorType.IS_ASYNC_CATCH
+        ) {
+          return temp.queue[innerIndex];
+        }
+
+        innerIndex++;
+      }
+    } else if (temp.interceptor.length === InterceptorType.IS_ASYNC_CATCH) {
+      return temp;
     }
-    
+
     outerIndex++;
   }
-
 }
 
 /**
  * 将两个拦截器队列进行合并生成一个新的队列
- * 被修改的元素会经过一层浅拷贝, 不会修改原有的属性
+ * 被修改的元素会经过一层浅拷贝, 不会修改原有队列中的元素
  * @param prevQueue 要合并的首个队列
  * @param nextQueue 和合并的第二个队列
  */
@@ -307,19 +339,11 @@ export function combineInterceptorQueue(
     InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>
   >
 ): Array<InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>> {
-  
   let prevQueueCopy;
-  // 如果下一个队列首个元素是手动拦截器
-  // 则查询该拦截器的 queue 属性
-  const searchQueue = isManually(nextQueue[0]) ? nextQueue[0].queue : nextQueue;
-  // 在下一个队列中查询带参拦截器的下标
-  const IndexOfInterceptorWithCatch = searchQueue.findIndex((item) =>
-    isManually(item)
-      ? ManuallyInterceptorType.IS_ASYNC_CATCH === item.interceptor.length
-      : InterceptorType.IS_ASYNC_CATCH === item.interceptor.length
-  );
 
-  if (IndexOfInterceptorWithCatch !== -1) {
+  const firstInterceptorWithCatch = searchInterceptorWithCatch(nextQueue);
+
+  if (firstInterceptorWithCatch) {
     let len = prevQueue.length,
       tempQueue = [];
     while (len--) {
@@ -329,7 +353,7 @@ export function combineInterceptorQueue(
       if (prevQueue[len].nextErrorHandler === undefined) {
         tempQueue.unshift({
           ...prevQueue[len],
-          nextErrorHandler: searchQueue[IndexOfInterceptorWithCatch],
+          nextErrorHandler: firstInterceptorWithCatch,
         });
       } else {
         break;
@@ -339,7 +363,12 @@ export function combineInterceptorQueue(
     // 截取首个数组中未发生变化的部分
     // 在连接临时数组
     prevQueueCopy = prevQueue.slice(0, len).concat(tempQueue);
-    prevQueueCopy[prevQueueCopy.length - 1].nextHandler = searchQueue[0];
+    // 重写最后一个数组元素的 nextHandler 的指向
+    // 如果下一个队列首个元素是手动拦截器则从手动拦截器的 queue 从获取
+    prevQueueCopy[prevQueueCopy.length - 1].nextHandler =
+      isManually(nextQueue[0]) && nextQueue[0].queue.length
+        ? nextQueue[0].queue[0]
+        : nextQueue[0];
   } else {
     // 如果下一个队列中没有带参拦截器
     // 则首个队列去除最后一个元素与
@@ -350,13 +379,22 @@ export function combineInterceptorQueue(
     });
   }
 
+  // 如果下一个队列中首个元素是手动拦截器
+  // 则重写下一个队列中的首个元素的 queue 属性
   if (isManually(nextQueue[0])) {
     const tempManually = {
-      ...nextQueue[0],
-    };
+      ...nextQueue.shift(),
+    } as ManuallyInterceptorProcessed<any>;
 
     tempManually.queue = prevQueueCopy.concat(tempManually.queue);
+
+    nextQueue.unshift(tempManually);
+    // 如果下一个队列的首个拦截器是手动拦截器
+    // 则说明上一个队列的所有元素被写入到了
+    // 这个手动拦截器的 queue 参数中
+    // 故此处直接返回下一个队列
+    return nextQueue;
   }
 
-  return prevQueue;
+  return prevQueueCopy.concat(nextQueue);
 }
