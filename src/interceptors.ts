@@ -181,7 +181,7 @@ export function extend(extendInterceptors?: any, innerInterceptors?: any) {
 
   return data;
 }
-
+type a = Pick;
 /**
  * 将特殊的非函数拦截器进行预处理.
  * @param interceptors 拦截器对象
