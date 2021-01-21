@@ -453,3 +453,65 @@ function (queue,config,next,value) {};
 ## 拦截器的上下文绑定
 
 ## 执行器
+
+# cache
+
+有时候我们想对请求进行缓存而 `axiosMix` 提供了这种自由组织缓存的能力.
+
+缓存的关键一共有两点:
+
+- 本次请求是否需要缓存
+- 缓存到哪里
+
+对于缓存到哪里的问题 `axiosMix` 对外暴露了接口, 当新建 `axiosMix` 实例的时候你可以通过 `option.cache` 来决定:
+
+```javascript
+axiosMix(axios, {
+  cache(path, response) {},
+});
+```
+
+然后请求时候提供的参数告诉 `axiosMix` 本次请求需要缓存:
+
+```javascript
+axiosMix.get("xxx", {
+  cache: true,
+});
+```
+
+如果一个请求决定要缓存, 每当响应完成后 `option.cache` 就会被调用传入两个参数:
+
+```javascript
+{
+  cache(path,processedResponse,rawResponse){
+    // 你应该在这里写入缓存
+  }
+}
+```
+
+第一个参数就是本次请求的路径, 第二个参数是经过 `afterResponse` 处理后的对象, 第三个则是 `axios` 原本的响应对象.
+
+`option.cache` 会在本次请求的 `then` 前, 但是在所有 `afterResponse` 执行完成后调用, 如果 `afterResponse` 执行的过程中发生了错误那么 `cache` 不会被调用.
+
+当然 `axiosMix` 本身并不知道本次请求是否存在缓存, 对于标识缓存的请求, 每次请求前同样会调用 `option.cache` 此时只会传入 `path` 作为查询的条件:
+
+```
+{
+  cache(path){
+    // 在这里查询缓存, 只要返回值非 `undefined` 都会作为本次请求的结果
+  }
+}
+```
+
+另外通过 `extend` 你可以重写存储, 然后生成一个新的 `axiosMix` 实例而不影响原有的配置:
+
+```javascript
+axiosMix.extend(
+  {},
+  {
+    cache(path,processedResponse,rawResponse) {},
+  }
+);
+```
+
+# retry
