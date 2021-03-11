@@ -19,12 +19,12 @@ const request = AxiosMix(axios.create());
 
 拦截器分为四种:
 
-| 名称          | 作用                                                                        |
-| ------------- | --------------------------------------------------------------------------- |
-| beforeRequest | 在请求前执行拦截                                                            |
-| afterResponse | 在请求后执行拦截                                                            |
-| failHandler   | 当请求失败后错误交由 failHandler 处理, 这个错误拦截会在 errorHandler 前执行 |
-| errorHandler  | 当请求失败后错误交由 errorHandler 处理, 这个错误拦截会在 failHandler 后执行 |
+| 名称              | 作用                                                                              |
+| ----------------- | --------------------------------------------------------------------------------- |
+| beforeRequest     | 在请求前执行拦截                                                                  |
+| afterResponse     | 在请求后执行拦截                                                                  |
+| localErrorHandler | 当请求失败后错误交由 localErrorHandler 处理, 这个错误拦截会在 errorHandler 前执行 |
+| errorHandler      | 当请求失败后错误交由 errorHandler 处理, 这个错误拦截会在 localErrorHandler 后执行 |
 
 ## 为什么存在两个错误拦截?
 
@@ -40,7 +40,7 @@ const request = AxiosMix(axios.create());
 
 如果可以区分开全局副作用和局部副作用那么代码的复用就会简单许多:
 
-- failHandler 中只允许编写局部副作用的代码
+- localErrorHandler 中只允许编写局部副作用的代码
 - errorHandler 中只允许编写全局副作用的代码
 
 ## 拦截器定义
@@ -154,7 +154,7 @@ request.get("/user", {
 - 返回 `Promise.resolve` 则 `resolve` 的结果作为本次请求 then 的内容
 - 返回 `Promise.reject` 则 `reject` 的内容作为本次请求的 `catch` 的内容
 - 返回 config 则本次请求使用重载后的 `config` 进行请求
-- 抛出错误则交由 `failHandler` 在交由 `errorHandler` 处理
+- 抛出错误则交由 `localErrorHandler` 在交由 `errorHandler` 处理
 - 不返回任何内容, 可以用于调试输出
 
 我们还可以向 `beforeRequest` 传入一个数组, 数组中可以包含多个拦截器, 包括后面提到的 **异步拦截器** 和 **手动拦截器** .
@@ -218,7 +218,7 @@ request.get("/user", {
 
 **注意**: 一旦使用 `next` 且传入参数则 `axios-mix` 会去查找下一个可以接收参数的拦截器, 这意味着如果中间存在同步拦截器或者不接受参数的异步拦截器则这些拦截器不会执行.
 
-如果没有找到接收该参数的拦截器, 则将该参数视为错误, 然后交由 `failHandler` 和 `errorHandler` 处理.
+如果没有找到接收该参数的拦截器, 则将该参数视为错误, 然后交由 `localErrorHandler` 和 `errorHandler` 处理.
 
 **注意**: 上述规则只适用于传入参数, 参数如果是 `next(undefined)` 和 `next(null)` 则认为没有传入参数.
 
@@ -243,15 +243,15 @@ request.get("/user", {
 - 返回 `Promise.resolve` 则 `resolve` 的结果作为本次请求 then 的内容
 - 返回 `Promise.reject` 则 `reject` 的内容作为本次请求的 `catch` 的内容
 - 返回 response 相当于调用 `Promise.resolve(response)`
-- 抛出错误则交由 `failHandler` 在交由 `errorHandler` 处理
+- 抛出错误则交由 `localErrorHandler` 在交由 `errorHandler` 处理
 
 和前置拦截器类似你也可以传入一个数组到 `afterResponse` 上.
 
 后置拦截器的 **异步版本** **异步带参数版本** 的 `next` 钩子的用法和前置拦截器的用法一致, 请查看同步拦截器的用法.
 
-### 局部错误拦截器(failHandler)
+### 局部错误拦截器(localErrorHandler)
 
-**警告**: failHandler 只能用在局部的错误处理上无法通过 `extend` 方法进行继承.
+**警告**: localErrorHandler 只能用在局部的错误处理上无法通过 `extend` 方法进行继承.
 
 错误拦截器和前置后置拦截器有很多相似的地方, 首个区别就是拦截器第一个参数不同, 我们有很多类型的错误:
 
@@ -272,11 +272,11 @@ function(config){
 }
 ```
 
-这样我们在 `failHandler` 中就知道错误的来源.
+这样我们在 `localErrorHandler` 中就知道错误的来源.
 
 ```javascript
 request.get("/user", {
-  failHandler: function (error) {
+  localErrorHandler: function (error) {
     if (error instanceof BeforeRequestError) {
       // do something
     }
@@ -289,7 +289,7 @@ request.get("/user", {
 ```javascript
 request
   .get("/user", {
-    failHandler: function (error) {
+    localErrorHandler: function (error) {
       // 不做处理
       console.log(error);
     },
@@ -303,7 +303,7 @@ request
 
 request
   .get("/user", {
-    failHandler: function () {
+    localErrorHandler: function () {
       return Promise.resolve("hello world");
     },
   })
@@ -328,7 +328,7 @@ request.get("/user").then((result) => {
 
 ```javascript
 request.get("/user", {
-  failHandler: function (error) {
+  localErrorHandler: function (error) {
     return Promise.resolve();
     // or
     return Promise.reject();
@@ -348,7 +348,7 @@ request.get("/user", {
 
 ```javascript
 request.get("/user", {
-  failHanlder: [
+  localErrorHandler: [
     function (error, next) {
       next("hello world");
     },
@@ -363,19 +363,19 @@ request.get("/user", {
 });
 ```
 
-当 failHandler 执行完成后则开始执行 `errorHandler`, 这里就存在一个问题交由 `errorHandler` 的错误应该是哪个?
+当 localErrorHandler 执行完成后则开始执行 `errorHandler`, 这里就存在一个问题交由 `errorHandler` 的错误应该是哪个?
 
-这个问题要看 `failHandler` 中最后一个 `next` 的使用方式:
+这个问题要看 `localErrorHandler` 中最后一个 `next` 的使用方式:
 
 - 如果 `next` 提供的参数, 那么交由 `errorHandler` 的参数就是 `next` 传入的值
 - 如果 `next` 没有提供参数, 那么交由 `errorHandler` 的参数就是原本的错误
-- 如果 `failHandler` 不存在则 `errorHandler` 将会直接拿到错误
+- 如果 `localErrorHandler` 不存在则 `errorHandler` 将会直接拿到错误
 
 ### 全局错误拦截器(errorHandler)
 
 **建议**: 只建议在处理全局错误时候使用, 请区分局部错误拦截器和全局错误拦截器.
 
-从代码形式上看全局错误拦截器的定义和 `failHanlder` 是一样的, 这里只有一点需要牢记, 即错误默认会留在错误拦截器中, 想要打破这一点需要手动抛出错误:
+从代码形式上看全局错误拦截器的定义和 `localErrorHandler` 是一样的, 这里只有一点需要牢记, 即错误默认会留在错误拦截器中, 想要打破这一点需要手动抛出错误:
 
 ```javascript
 request
@@ -509,7 +509,7 @@ axiosMix.get("xxx", {
 axiosMix.extend(
   {},
   {
-    cache(path,processedResponse,rawResponse) {},
+    cache(path, processedResponse, rawResponse) {},
   }
 );
 ```
