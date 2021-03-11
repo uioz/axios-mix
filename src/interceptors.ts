@@ -69,7 +69,7 @@ export type ExtendInterceptor<T> =
 export interface OuterInterceptorOptions<R> {
   beforeRequest?: ExtendInterceptor<AxiosRequestConfig>;
   afterResponse?: ExtendInterceptor<AxiosResponse<R>>;
-  failHandler?: ExtendInterceptor<any>;
+  localErrorHandler?: ExtendInterceptor<any>;
   errorHandler?: ExtendInterceptor<any>;
 }
 
@@ -79,7 +79,7 @@ export interface OuterInterceptorOptions<R> {
 export interface RawInterceptorQueue {
   beforeRequest: Array<Interceptor<any> | ManuallyInterceptor<any>>;
   afterResponse: Array<Interceptor<any> | ManuallyInterceptor<any>>;
-  failHandler: Array<Interceptor<any> | ManuallyInterceptor<any>>;
+  localErrorHandler: Array<Interceptor<any> | ManuallyInterceptor<any>>;
   errorHandler: Array<Interceptor<any> | ManuallyInterceptor<any>>;
 }
 
@@ -93,7 +93,7 @@ export interface InnerInterceptorQueue {
   afterResponse: Array<
     InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>
   >;
-  failHandler: Array<
+  localErrorHandler: Array<
     InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>
   >;
   errorHandler: Array<
@@ -153,7 +153,7 @@ export function extend(extendInterceptors?: any, innerInterceptors?: any) {
   const data = {
     beforeRequest: [],
     afterResponse: [],
-    failHandler: [],
+    localErrorHandler: [],
     errorHandler: [],
   };
 

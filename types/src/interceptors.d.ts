@@ -21,19 +21,19 @@ export declare type ExtendInterceptor<T> = Interceptor<T> | ManuallyInterceptor<
 export interface OuterInterceptorOptions<R> {
     beforeRequest?: ExtendInterceptor<AxiosRequestConfig>;
     afterResponse?: ExtendInterceptor<AxiosResponse<R>>;
-    failHandler?: ExtendInterceptor<any>;
+    localErrorHandler?: ExtendInterceptor<any>;
     errorHandler?: ExtendInterceptor<any>;
 }
 export interface RawInterceptorQueue {
     beforeRequest: Array<Interceptor<any> | ManuallyInterceptor<any>>;
     afterResponse: Array<Interceptor<any> | ManuallyInterceptor<any>>;
-    failHandler: Array<Interceptor<any> | ManuallyInterceptor<any>>;
+    localErrorHandler: Array<Interceptor<any> | ManuallyInterceptor<any>>;
     errorHandler: Array<Interceptor<any> | ManuallyInterceptor<any>>;
 }
 export interface InnerInterceptorQueue {
     beforeRequest: Array<InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>>;
     afterResponse: Array<InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>>;
-    failHandler: Array<InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>>;
+    localErrorHandler: Array<InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>>;
     errorHandler: Array<InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>>;
 }
 export declare function extend(): RawInterceptorQueue;

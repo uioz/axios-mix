@@ -125,7 +125,7 @@ function AxiosMix(axios: AxiosInstance, options?: Options) {
     };
   }
 
-  function errorMixin(config: any, failHandler: any, errorHandler: any) {
+  function errorMixin(config: any, localErrorHandler: any, errorHandler: any) {
     config._errorHandler = function (error: any) {
       return error;
     };
@@ -138,13 +138,13 @@ function AxiosMix(axios: AxiosInstance, options?: Options) {
           return function ({
             beforeRequest,
             afterResponse,
-            failHandler,
+            localErrorHandler,
             errorHandler,
             ...rest
           }: any = {}) {
             beforeRequestMixin(rest, beforeRequest);
             afterResponseMixin(rest, afterResponse);
-            errorMixin(rest, failHandler, errorHandler);
+            errorMixin(rest, localErrorHandler, errorHandler);
             return target[key](rest);
           };
         case "get":
@@ -156,14 +156,14 @@ function AxiosMix(axios: AxiosInstance, options?: Options) {
             {
               beforeRequest,
               afterResponse,
-              failHandler,
+              localErrorHandler,
               errorHandler,
               ...rest
             }: any = {}
           ) {
             beforeRequestMixin(rest, beforeRequest);
             afterResponseMixin(rest, afterResponse);
-            errorMixin(rest, failHandler, errorHandler);
+            errorMixin(rest, localErrorHandler, errorHandler);
             return target[key](url, rest);
           };
         case "post":
@@ -175,14 +175,14 @@ function AxiosMix(axios: AxiosInstance, options?: Options) {
             {
               beforeRequest,
               afterResponse,
-              failHandler,
+              localErrorHandler,
               errorHandler,
               ...rest
             }: any = {}
           ) {
             beforeRequestMixin(rest, beforeRequest);
             afterResponseMixin(rest, afterResponse);
-            errorHandler(rest, failHandler, errorHandler);
+            errorHandler(rest, localErrorHandler, errorHandler);
             return target[key](url, data, rest);
           };
         case "extend":
