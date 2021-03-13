@@ -77,16 +77,19 @@ export interface ExtendAxiosInstance extends AxiosMixInstance {
   eject: any;
 }
 
+const ALLOW_MANUALLY_INTERCEPTOR = true;
+const DENY_MANUALLY_INTERCEPTOR = false;
+
 function AxiosMix(axios: AxiosInstance, options?: Options) {
   interface innerOption {
-    _extend?: boolean;
+    _extendMode?: boolean;
     queue: InnerInterceptorObj;
   }
 
   const interceptorsQueue: InnerInterceptorObj =
     (options as innerOption)?.queue ?? formatter();
 
-  if (!(options as innerOption)?._extend) {
+  if (!(options as innerOption)?._extendMode) {
     axios.interceptors.request.use(function (config: any) {
       return config?._beforeRequestHandler(config) ?? config;
     });
@@ -103,7 +106,10 @@ function AxiosMix(axios: AxiosInstance, options?: Options) {
   function beforeRequestMixin(config: any, beforeRequest: any) {
     if (beforeRequest) {
       // 需要将外部传入的 Raw 进行预处理
-      beforeRequest = preCompile(formatter({ beforeRequest }), true).beforeRequest;
+      beforeRequest = preCompile(
+        formatter({ beforeRequest }),
+        ALLOW_MANUALLY_INTERCEPTOR
+      ).beforeRequest;
     }
 
     config._beforeRequestHandler = function (config: any) {
@@ -194,8 +200,12 @@ function AxiosMix(axios: AxiosInstance, options?: Options) {
               ...options,
               ...o,
               // @ts-ignore
-              queue: preCompile(formatter(interceptor, interceptorsQueue)),
-              _extend: true,
+              queue: preCompile(
+                // @ts-ignore
+                formatter(interceptor, interceptorsQueue),
+                DENY_MANUALLY_INTERCEPTOR
+              ),
+              _extendMode: true,
             });
           };
         default:
