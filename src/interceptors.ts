@@ -76,7 +76,7 @@ export interface OuterInterceptorOptions<R> {
 /**
  * 该接口描述了经过 extend 后转为统一队列的外部传入的参数
  */
-export interface RawInterceptorQueue {
+export interface RawInterceptorObj {
   beforeRequest: Array<Interceptor<any> | ManuallyInterceptor<any>>;
   afterResponse: Array<Interceptor<any> | ManuallyInterceptor<any>>;
   localErrorHandler: Array<Interceptor<any> | ManuallyInterceptor<any>>;
@@ -84,9 +84,10 @@ export interface RawInterceptorQueue {
 }
 
 /**
- * 该接口描述了保存在 axios-mix 内部队列的类型
+ * 该接口描述了保存在 axios-mix 内部队列的类型.
+ * 该对象上挂载的所有拦截器均经过编译处理.
  */
-export interface InnerInterceptorQueue {
+export interface InnerInterceptorObj {
   beforeRequest: Array<
     InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>
   >;
@@ -128,28 +129,43 @@ function check(item: Interceptor<any> | ManuallyInterceptor<any>) {
   }
 }
 
-export function extend(): RawInterceptorQueue;
-export function extend(
+/**
+ * 调用后返回一个标准的拦截器对象
+ */
+export function formatter(): RawInterceptorObj;
+/**
+ * 将不规则的拦截器对象整理成标准的拦截器对象, 并对每一个拦截器进行检查是否符合格式
+ * @param interceptorOption 不规则的拦截器对象
+ */
+export function formatter(
   interceptorOption: OuterInterceptorOptions<any>
-): RawInterceptorQueue;
-export function extend(
-  extendInterceptors: RawInterceptorQueue,
-  innerInterceptors: RawInterceptorQueue
-): RawInterceptorQueue;
-export function extend(
-  extendInterceptors: InnerInterceptorQueue,
-  innerInterceptors: InnerInterceptorQueue
-): InnerInterceptorQueue;
+): RawInterceptorObj;
+/**
+ * 将扩展源拦截器对象作为基础, 通过传入另一个拦截器对象创建一个新的拦截器对象.
+ * 并对扩展的拦截器对象进行拦截器格式检查.
+ * @param extendInterceptors 需要被扩展的拦截器对象
+ * @param innerInterceptors 作为扩展源的拦截器对象
+ */
+export function formatter(
+  extendInterceptors: RawInterceptorObj,
+  innerInterceptors: RawInterceptorObj
+): RawInterceptorObj;
+/**
+ * 将扩展源拦截器对象作为基础, 通过传入另一个拦截器对象创建一个新的拦截器对象.
+ * 并对扩展的拦截器对象进行拦截器格式检查.
+ * @param extendInterceptors 需要被扩展的拦截器对象
+ * @param innerInterceptors 作为扩展源的拦截器对象
+ */
+export function formatter(
+  extendInterceptors: InnerInterceptorObj,
+  innerInterceptors: InnerInterceptorObj
+): InnerInterceptorObj;
 /**
  * TODO: waiting test
- * 将内部队列和外部传入的队列进行合并然后创建一个新的队列
- * 如果只传入一个参数则外部拦截器和内部的空拦截器合并
- * 如果不传入参数则返回一个初始拦截器对象
- * **注意**: 该函数仅用于合并, 不会去处理那些非函数的特殊拦截器
  * @param extendInterceptors 用于扩展的队列
  * @param innerInterceptors 被扩展的基础队列
  */
-export function extend(extendInterceptors?: any, innerInterceptors?: any) {
+export function formatter(extendInterceptors?: any, innerInterceptors?: any) {
   const data = {
     beforeRequest: [],
     afterResponse: [],
@@ -161,7 +177,7 @@ export function extend(extendInterceptors?: any, innerInterceptors?: any) {
     innerInterceptors = innerInterceptors ?? data;
 
     for (const key of Object.keys(innerInterceptors) as Array<
-      keyof RawInterceptorQueue
+      keyof RawInterceptorObj
     >) {
       const queue = extendInterceptors[key];
       if (queue) {
@@ -183,16 +199,17 @@ export function extend(extendInterceptors?: any, innerInterceptors?: any) {
 }
 
 /**
- * 将特殊的非函数拦截器进行预处理.
+ * 将原始的队列在内部进行预编译处理, 转为统一的拦截器对象格式.
+ * 该函数会修改原有队列.
  * @param interceptors 拦截器对象
  * @param handleManually 是否处理手动拦截器
  */
-export function preProcess(
-  interceptors: RawInterceptorQueue,
+export function preCompile(
+  interceptors: RawInterceptorObj,
   handleManually: boolean = false
-): InnerInterceptorQueue {
+): InnerInterceptorObj {
   for (const key of Object.keys(interceptors) as Array<
-    keyof RawInterceptorQueue
+    keyof RawInterceptorObj
   >) {
     const queue = interceptors[key];
 
@@ -274,7 +291,7 @@ export function preProcess(
     }
   }
 
-  return interceptors as InnerInterceptorQueue;
+  return interceptors as InnerInterceptorObj;
 }
 
 /**
@@ -326,12 +343,12 @@ function searchInterceptorWithCatch(
 }
 
 /**
- * 将两个拦截器队列进行合并生成一个新的队列
- * 被修改的元素会经过一层浅拷贝, 不会修改原有队列中的元素
+ * 将给定的两个经过编译的队列合成为同一个队列.
+ * 该函数不会修改原有队列.
  * @param prevQueue 要合并的首个队列
  * @param nextQueue 和合并的第二个队列
  */
-export function combineInterceptorQueue(
+export function joinCompiledInterceptorQueue(
   prevQueue: Array<
     InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>
   >,

@@ -34,6 +34,10 @@ export function beforeRequest(
   >,
   config: AxiosMixRequestConfig
 ) {
+
+  
+
+
   // for (let item of innerInterceptorQueue) {
   //   if (isManually(item)) {
   //   }

@@ -9,10 +9,10 @@ import * as executor from "./executor";
 
 import {
   OuterInterceptorOptions,
-  extend,
-  InnerInterceptorQueue,
-  preProcess,
-  combineInterceptorQueue,
+  formatter,
+  InnerInterceptorObj,
+  preCompile,
+  joinCompiledInterceptorQueue,
 } from "./interceptors";
 
 export type AxiosMixRequestConfig<R = any> = OuterInterceptorOptions<R> &
@@ -80,11 +80,11 @@ export interface ExtendAxiosInstance extends AxiosMixInstance {
 function AxiosMix(axios: AxiosInstance, options?: Options) {
   interface innerOption {
     _extend?: boolean;
-    queue: InnerInterceptorQueue;
+    queue: InnerInterceptorObj;
   }
 
-  const interceptorsQueue: InnerInterceptorQueue =
-    (options as innerOption)?.queue ?? extend();
+  const interceptorsQueue: InnerInterceptorObj =
+    (options as innerOption)?.queue ?? formatter();
 
   if (!(options as innerOption)?._extend) {
     axios.interceptors.request.use(function (config: any) {
@@ -103,13 +103,13 @@ function AxiosMix(axios: AxiosInstance, options?: Options) {
   function beforeRequestMixin(config: any, beforeRequest: any) {
     if (beforeRequest) {
       // 需要将外部传入的 Raw 进行预处理
-      beforeRequest = preProcess(extend({ beforeRequest }), true).beforeRequest;
+      beforeRequest = preCompile(formatter({ beforeRequest }), true).beforeRequest;
     }
 
     config._beforeRequestHandler = function (config: any) {
       return executor.beforeRequest(
         beforeRequest
-          ? combineInterceptorQueue(
+          ? joinCompiledInterceptorQueue(
               interceptorsQueue.beforeRequest,
               beforeRequest
             )
@@ -194,7 +194,7 @@ function AxiosMix(axios: AxiosInstance, options?: Options) {
               ...options,
               ...o,
               // @ts-ignore
-              queue: preProcess(extend(interceptor, interceptorsQueue)),
+              queue: preCompile(formatter(interceptor, interceptorsQueue)),
               _extend: true,
             });
           };
