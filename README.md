@@ -456,12 +456,19 @@ function (queue,config,next,value) {};
 
 `queue` 存放该手动拦截器前的所有拦截器, 这些拦截器在内部经过编译处理, 队列中的所有的元素是对象而不是一开始由用户传入的函数, 该对象定义如下:
 
-```javascript
-{
-  interceptor:function(){}, // 拦截器本身, 由用户传入
-  nextHandler:function(){}, // 下一个拦截器, undefined 则表示最后一个拦截器
-  nextErrorHandler:function(){}, // 下一个带参拦截器, undefined 则表示最后一个拦截器
-  manually:false, // 该属性也可能不存在和 false 一样均表示非手动拦截器
+```typescript
+interface interceptorCompiled {
+  // 由用户传入的拦截器函数
+  interceptor: function;
+  // 下一个拦截器对象, undefined 则表示最后一个拦截器
+  nextHandler: object | undefined;
+  // 下一个带参拦截器对象, undefined 则表示最后一个拦截器
+  nextErrorHandler: object | undefined;
+  // true 则表示该拦截器是手动拦截器
+  manually?: boolean;
+  // 如果是手动拦截器, queue 保存着该拦截器前的所有编译后的拦截器
+  // 同时该参数作为 interceptorCompiled.interceptor 的首个参数传入
+  queue?: Array;
 }
 ```
 
