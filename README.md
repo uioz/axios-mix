@@ -1,8 +1,12 @@
 # axios-mix
 
-# peer
+`axios-mix` 是一款基于 `axios` 的扩展, 在不修改原有 `axios` API 的前提上为 `axios` 添加了三个实用的功能.
 
-# rollup
+1. 更加丰富的拦截器 API, 允许用户更加合理的组织全局和单次请求的拦截器逻辑
+2. 简单友好的缓存 API, 允许用户在全局或者单次请求时进行客户端缓存控制
+3. 请求失败后允许重试 API, 允许用户在全局或者单次请求配置对应的请求重试逻辑
+
+`axios-mix` 基于 `proxy` 设计, 请确保你的浏览器支持 `proxy` API.
 
 # basic usage
 
@@ -149,23 +153,32 @@ request.get("/user", {
     throw new Error("do something");
   },
 });
+
+// or 使用数组一次性传入多个拦截器
+
+request.get("/user", {
+  beforeRequest: [
+    function (config) {
+      // do something
+    },
+    function (config) {
+      // do something
+    },
+  ],
+});
 ```
 
 - 返回 `Promise.resolve` 则 `resolve` 的结果作为本次请求 then 的内容
 - 返回 `Promise.reject` 则 `reject` 的内容作为本次请求的 `catch` 的内容
 - 返回 config 则本次请求使用重载后的 `config` 进行请求
 - 抛出错误则交由 `localErrorHandler` 在交由 `errorHandler` 处理
-- 不返回任何内容, 可以用于调试输出
+- 不返回任何内容即 `undefined` 则执行下个拦截器
 
-我们还可以向 `beforeRequest` 传入一个数组, 数组中可以包含多个拦截器, 包括后面提到的 **异步拦截器** 和 **手动拦截器** .
+**注意**: 请牢记前置拦截器的主要目的是重载本次请求的配置, 函数一旦 `return` 则后续拦截器不再执行. 如果所有拦截器执行完毕都没有返回参数则使用本次请求的默认配置.
 
-```javascript
-request.get("/user", {
-  beforeRequest: [function (config) {}, function (config) {}],
-});
-```
+#### 异步拦截器
 
-对于异步拦截器来说, 只新增了一个规则即 `next` 钩子的设计, 可以不使用 `next` 钩子, 在这种情况下如果返回值符合同步拦截器的定义, 则作用效果和前置拦截器一致, 将无视 `next` 的调用.
+异步拦截器使用了和 `express` 类似的 API 设计, 函数多了一个 `next` 参数, 如果当前异步任务执行完毕, 调用 `next` 则会将控制权交由下一个拦截器.
 
 ```javascript
 request.get("/user", {
@@ -177,11 +190,15 @@ request.get("/user", {
     return config;
     // or
     throw new Error("do something");
+    // or
+    next();
   },
 });
 ```
 
-但是如果返回值是 `undefined` 即函数的默认返回值则进入异步状态, 只有当 `next` 钩子调用后下一个钩子才会执行:
+异步拦截器并不意味着不处理函数的返回值, 如果 `return` 语句返回了一个可以被处理的值或者抛出了错误且先于 `next` 钩子的执行, 那么就会按照同步执行器的逻辑处理从而无视 `next` 的调用.
+
+反之如果什么都不返回则视为进入了异步状态, 此时只有 `next` 钩子调用后控制权才会交由下个拦截器.
 
 ```javascript
 request.get("/user", {
@@ -191,9 +208,9 @@ request.get("/user", {
 });
 ```
 
-**注意**: 一旦 `next` 调用则返回值将会被抛弃.
+和 `express` 类似你可以向 `next` 传入一个参数.
 
-和 `express` 类似, 基于 `next` 我们可以将参数传入到下一个拦截器中:
+一旦使用 `next` 且传入参数则 `axios-mix` 会去查找下一个可以接收参数的拦截器, 这意味着如果中间存在同步拦截器或者不接受参数的异步拦截器则这些拦截器不会执行.
 
 ```javascript
 request.get("/user", {
@@ -216,11 +233,9 @@ request.get("/user", {
 });
 ```
 
-**注意**: 一旦使用 `next` 且传入参数则 `axios-mix` 会去查找下一个可以接收参数的拦截器, 这意味着如果中间存在同步拦截器或者不接受参数的异步拦截器则这些拦截器不会执行.
+**注意**: 如果没有找到接收该参数的拦截器, 则将该参数视为错误, 然后交由 `localErrorHandler` 和 `errorHandler` 处理.
 
-如果没有找到接收该参数的拦截器, 则将该参数视为错误, 然后交由 `localErrorHandler` 和 `errorHandler` 处理.
-
-**注意**: 上述规则只适用于传入参数, 参数如果是 `next(undefined)` 和 `next(null)` 则认为没有传入参数.
+**注意**: 上述规则只适用于传入参数, 参数如果是 `next(undefined)` 则认为没有传入参数.
 
 ### 后置拦截器
 
@@ -513,5 +528,9 @@ axiosMix.extend(
   }
 );
 ```
+
+# peer
+
+# rollup
 
 # retry
