@@ -36,8 +36,8 @@ export interface ManuallyInterceptor<C> {
   interceptor<T>(
     queue: Array<InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>>,
     base: C,
-    next: NextHook,
-    value: any
+    next?: NextHook,
+    value?: any
   ): Promise<T> | Error | C;
 }
 
