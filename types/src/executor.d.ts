@@ -13,4 +13,4 @@ export declare enum ManuallyInterceptorType {
 export declare const MAX_ARGS_OF_INTERCEPTOR = 3;
 export declare const MIN_ARGS_OF_INTERCEPTOR = 1;
 export declare function isManually(data: any): data is ManuallyInterceptor<any>;
-export declare function beforeRequest(innerInterceptorQueue: Array<InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>>, config: AxiosMixRequestConfig): AxiosMixRequestConfig<any>;
+export declare function beforeRequest(innerInterceptorQueue: Array<InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>>, config: AxiosMixRequestConfig): Promise<unknown>;

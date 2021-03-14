@@ -34,9 +34,46 @@ export function beforeRequest(
   >,
   config: AxiosMixRequestConfig
 ) {
+  type currentInterceptor =
+    | InterceptorProcessed<any>
+    | ManuallyInterceptorProcessed<any>
+    | undefined;
 
-  
+  function executor(
+    resolve: (value: unknown) => void,
+    reject: (reason?: any) => void,
+    currentInterceptor: currentInterceptor
+  ) {
+    if (!currentInterceptor) {
+    } else if (isManually(currentInterceptor)) {
+      switch (currentInterceptor.interceptor.length) {
+        case ManuallyInterceptorType.IS_SYNC:
+          const result = currentInterceptor.interceptor(
+            currentInterceptor.queue,
+            config
+          );
 
+          if (result === undefined) {
+            // 如果没有返回任何内容, 则执行下一个拦截器
+            executor(resolve, reject, currentInterceptor.nextHandler);
+          } else {
+            // 如果此处返回的是 Promise 无需判断其是 Promise.reject 还是 Promise.resolve
+            // 如果是 Promise.resolve 则 Promise 的最终状态还会是 <rejected>
+            resolve(result);
+          }
+
+        case ManuallyInterceptorType.IS_ASYNC:
+        // TODO:
+        case ManuallyInterceptorType.IS_ASYNC_CATCH:
+          break;
+      }
+    } else {
+    }
+  }
+
+  return new Promise((resolve, reject) =>
+    executor(resolve, reject, innerInterceptorQueue.pop())
+  );
 
   // for (let item of innerInterceptorQueue) {
   //   if (isManually(item)) {
@@ -71,5 +108,5 @@ export function beforeRequest(
   //   }
   // }
 
-  return config;
+  // return config;
 }
