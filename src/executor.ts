@@ -39,35 +39,132 @@ export function beforeRequest(
     | ManuallyInterceptorProcessed<any>
     | undefined;
 
+  /**
+   *
+   * @param resolve
+   * @param reject
+   * @param currentInterceptor
+   * @param value 上个异步拦截器 next 钩子传入的参数
+   * @returns
+   */
   function executor(
     resolve: (value: unknown) => void,
     reject: (reason?: any) => void,
-    currentInterceptor: currentInterceptor
-  ) {
-    if (!currentInterceptor) {
+    currentInterceptor: currentInterceptor,
+    value?: unknown
+  ): void {
+    let stopNext = false;
+
+    /**
+     * nextHandler only execute when have currentInterceptor
+     * @returns
+     */
+    function nextHandler() {
+      // 如果已经处理了返回值, 则无视钩子的调用
+      if (stopNext) {
+        return void 0;
+      }
+
+      // 如果没有返回内容则执行下个钩子
+      if (value === undefined) {
+        // @ts-ignore
+        return executor(resolve, reject, currentInterceptor.nextHandler);
+      }
+      // 否则执行下个带参拦截器
+      return executor(
+        resolve,
+        reject,
+        // @ts-ignore
+        currentInterceptor.nextErrorHandler,
+        value
+      );
+    }
+
+    // 如果查询到队列尾也没有拦截器
+    if (currentInterceptor === undefined) {
+      // 异步拦截器没有携带参数
+      if (value === undefined) {
+        return resolve(config);
+      }
+
+      // 且上个异步拦截器携带了参数
+      return reject(value);
     } else if (isManually(currentInterceptor)) {
       switch (currentInterceptor.interceptor.length) {
         case ManuallyInterceptorType.IS_SYNC:
-          const result = currentInterceptor.interceptor(
-            currentInterceptor.queue,
-            config
-          );
+          try {
+            const result = currentInterceptor.interceptor(
+              currentInterceptor.queue,
+              config
+            );
 
-          if (result === undefined) {
-            // 如果没有返回任何内容, 则执行下一个拦截器
-            executor(resolve, reject, currentInterceptor.nextHandler);
-          } else {
+            if (result === undefined) {
+              // 如果没有返回任何内容, 则执行下一个拦截器
+              return executor(resolve, reject, currentInterceptor.nextHandler);
+            }
             // 如果此处返回的是 Promise 无需判断其是 Promise.reject 还是 Promise.resolve
             // 如果是 Promise.resolve 则 Promise 的最终状态还会是 <rejected>
-            resolve(result);
+            return resolve(result);
+          } catch (error) {
+            return reject(error);
           }
-
         case ManuallyInterceptorType.IS_ASYNC:
-        // TODO:
+          try {
+            const result: unknown = currentInterceptor.interceptor(
+              currentInterceptor.queue,
+              config,
+              nextHandler
+            );
+
+            // 如果返回了内容则交由 axios 处理
+            if (result !== undefined) {
+              stopNext = true;
+              return resolve(result);
+            }
+          } catch (error) {
+            stopNext = true;
+            return reject(error);
+          }
+          break;
         case ManuallyInterceptorType.IS_ASYNC_CATCH:
+          try {
+            const result: unknown = currentInterceptor.interceptor(
+              currentInterceptor.queue,
+              config,
+              nextHandler,
+              value
+            );
+            // 如果返回了内容则交由 axios 处理
+            if (result !== undefined) {
+              stopNext = true;
+              return resolve(result);
+            }
+          } catch (error) {
+            stopNext = true;
+            return reject(error);
+          }
           break;
       }
     } else {
+      switch (currentInterceptor.interceptor.length) {
+        case InterceptorType.IS_SYNC:
+          try {
+            const result = currentInterceptor.interceptor(config);
+
+            if (result === undefined) {
+              return executor(resolve, reject, currentInterceptor.nextHandler);
+            }
+
+            return resolve(result);
+          } catch (error) {
+            return reject(error);
+          }
+        case InterceptorType.IS_ASYNC:
+          // TODO:
+          break;
+        case InterceptorType.IS_ASYNC_CATCH:
+          break;
+      }
     }
   }
 
@@ -75,38 +172,4 @@ export function beforeRequest(
     executor(resolve, reject, innerInterceptorQueue.pop())
   );
 
-  // for (let item of innerInterceptorQueue) {
-  //   if (isManually(item)) {
-  //   }
-
-  //   // handle situation like {manaually:false,interceptor:function(){}}
-  //   // @ts-ignore
-  //   if (item.interceptor) {
-  //     // @ts-ignore
-  //     item = item.interceptor;
-  //   }
-  //   if (typeof item === "function") {
-  //     switch (item.length) {
-  //       case InterceptorType.IS_SYNC:
-  //         try {
-  //           const result = item(config);
-
-  //           if (result) {
-  //             return result;
-  //           }
-
-  //           return config;
-  //         } catch (error) {
-  //           error.config = config;
-  //           throw error;
-  //         }
-  //       case InterceptorType.IS_ASYNC:
-  //         break;
-  //       case InterceptorType.IS_ASYNC_CATCH:
-  //         break;
-  //     }
-  //   }
-  // }
-
-  // return config;
 }

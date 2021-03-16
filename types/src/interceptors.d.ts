@@ -1,7 +1,7 @@
 import { AxiosRequestConfig, AxiosResponse } from "axios";
 export declare type NextHook = (data: any) => void;
 export interface Interceptor<C> {
-    <T>(base: C, next: NextHook, value: any): Promise<T> | Error | C;
+    <T>(base: C, next?: NextHook, value?: any): Promise<T> | C;
 }
 export interface InterceptorProcessed<C> {
     interceptor: Interceptor<C>;
@@ -10,7 +10,7 @@ export interface InterceptorProcessed<C> {
 }
 export interface ManuallyInterceptor<C> {
     manually: boolean;
-    interceptor<T>(queue: Array<InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>>, base: C, next: NextHook, value: any): Promise<T> | Error | C;
+    interceptor<T>(queue: Array<InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>>, base: C, next?: NextHook, value?: any): Promise<T> | C;
 }
 export interface ManuallyInterceptorProcessed<C> extends ManuallyInterceptor<C> {
     queue: Array<InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>>;

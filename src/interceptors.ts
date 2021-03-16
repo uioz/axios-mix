@@ -10,7 +10,7 @@ import {
 export type NextHook = (data: any) => void;
 
 export interface Interceptor<C> {
-  <T>(base: C, next: NextHook, value: any): Promise<T> | Error | C;
+  <T>(base: C, next?: NextHook, value?: any): Promise<T> | C;
 }
 
 /**
@@ -38,7 +38,7 @@ export interface ManuallyInterceptor<C> {
     base: C,
     next?: NextHook,
     value?: any
-  ): Promise<T> | Error | C;
+  ): Promise<T> | C;
 }
 
 /**
