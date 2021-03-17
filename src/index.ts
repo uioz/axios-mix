@@ -91,7 +91,7 @@ function AxiosMix(axios: AxiosInstance, options?: Options) {
 
   if (!(options as innerOption)?._extendMode) {
     axios.interceptors.request.use(function (config: any) {
-      return config?._beforeRequestHandler(config) ?? config;
+      return config?._beforeRequestHandler(config);
     });
     axios.interceptors.response.use(
       function (response: any) {
