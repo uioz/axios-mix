@@ -160,9 +160,39 @@ export function beforeRequest(
             return reject(error);
           }
         case InterceptorType.IS_ASYNC:
-          // TODO:
+          try {
+            const result: unknown = currentInterceptor.interceptor(
+              config,
+              nextHandler
+            );
+
+            // 如果返回了内容则交由 axios 处理
+            if (result !== undefined) {
+              stopNext = true;
+              return resolve(result);
+            }
+          } catch (error) {
+            stopNext = true;
+            return reject(error);
+          }
+
           break;
         case InterceptorType.IS_ASYNC_CATCH:
+          try {
+            const result: unknown = currentInterceptor.interceptor(
+              config,
+              nextHandler,
+              value
+            );
+            // 如果返回了内容则交由 axios 处理
+            if (result !== undefined) {
+              stopNext = true;
+              return resolve(result);
+            }
+          } catch (error) {
+            stopNext = true;
+            return reject(error);
+          }
           break;
       }
     }
@@ -171,5 +201,4 @@ export function beforeRequest(
   return new Promise((resolve, reject) =>
     executor(resolve, reject, innerInterceptorQueue.pop())
   );
-
 }
