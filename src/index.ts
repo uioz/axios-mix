@@ -80,6 +80,25 @@ export interface ExtendAxiosInstance extends AxiosMixInstance {
 const ALLOW_MANUALLY_INTERCEPTOR = true;
 const DENY_MANUALLY_INTERCEPTOR = false;
 
+function beforeRequestMixin(
+  config: any,
+  innerBeforeRequsts: any,
+  beforeRequests?: any
+) {
+  const queue = beforeRequests
+    ? joinCompiledInterceptorQueue(
+        innerBeforeRequsts,
+        preCompile(
+          formatter({ beforeRequest: beforeRequests }),
+          ALLOW_MANUALLY_INTERCEPTOR
+        ).beforeRequest
+      )
+    : innerBeforeRequsts;
+
+  config._beforeRequestHandler = (config: any) =>
+    executor.beforeRequest(queue, config);
+}
+
 function AxiosMix(axios: AxiosInstance, options?: Options) {
   interface innerOption {
     _extendMode?: boolean;
@@ -101,28 +120,6 @@ function AxiosMix(axios: AxiosInstance, options?: Options) {
         return error?.config?._errorHandler(error) ?? error;
       }
     );
-  }
-
-  function beforeRequestMixin(config: any, beforeRequest: any) {
-    if (beforeRequest) {
-      // 需要将外部传入的 Raw 进行预处理
-      beforeRequest = preCompile(
-        formatter({ beforeRequest }),
-        ALLOW_MANUALLY_INTERCEPTOR
-      ).beforeRequest;
-    }
-
-    config._beforeRequestHandler = function (config: any) {
-      return executor.beforeRequest(
-        beforeRequest
-          ? joinCompiledInterceptorQueue(
-              interceptorsQueue.beforeRequest,
-              beforeRequest
-            )
-          : interceptorsQueue.beforeRequest,
-        config
-      );
-    };
   }
 
   function afterResponseMixin(config: any, afterResponse: any) {
@@ -148,7 +145,11 @@ function AxiosMix(axios: AxiosInstance, options?: Options) {
             errorHandler,
             ...rest
           }: any = {}) {
-            beforeRequestMixin(rest, beforeRequest);
+            beforeRequestMixin(
+              rest,
+              interceptorsQueue.beforeRequest,
+              beforeRequest
+            );
             afterResponseMixin(rest, afterResponse);
             errorMixin(rest, localErrorHandler, errorHandler);
             return target[key](rest);
@@ -167,7 +168,11 @@ function AxiosMix(axios: AxiosInstance, options?: Options) {
               ...rest
             }: any = {}
           ) {
-            beforeRequestMixin(rest, beforeRequest);
+            beforeRequestMixin(
+              rest,
+              interceptorsQueue.beforeRequest,
+              beforeRequest
+            );
             afterResponseMixin(rest, afterResponse);
             errorMixin(rest, localErrorHandler, errorHandler);
             return target[key](url, rest);
@@ -186,7 +191,11 @@ function AxiosMix(axios: AxiosInstance, options?: Options) {
               ...rest
             }: any = {}
           ) {
-            beforeRequestMixin(rest, beforeRequest);
+            beforeRequestMixin(
+              rest,
+              interceptorsQueue.beforeRequest,
+              beforeRequest
+            );
             afterResponseMixin(rest, afterResponse);
             errorHandler(rest, localErrorHandler, errorHandler);
             return target[key](url, data, rest);
