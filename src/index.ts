@@ -83,15 +83,13 @@ const DENY_MANUALLY_INTERCEPTOR = false;
 function beforeRequestMixin(
   config: any,
   innerBeforeRequsts: any,
-  beforeRequests?: any
+  beforeRequest?: any
 ) {
-  const queue = beforeRequests
+  const queue = beforeRequest
     ? joinCompiledInterceptorQueue(
         innerBeforeRequsts,
-        preCompile(
-          formatter({ beforeRequest: beforeRequests }),
-          ALLOW_MANUALLY_INTERCEPTOR
-        ).beforeRequest
+        preCompile(formatter({ beforeRequest }), ALLOW_MANUALLY_INTERCEPTOR)
+          .beforeRequest
       )
     : innerBeforeRequsts;
 
@@ -117,7 +115,13 @@ function AxiosMix(axios: AxiosInstance, options?: Options) {
         return response?.config?._afterResponseHandler(response) ?? response;
       },
       function (error: any) {
-        return error?.config?._errorHandler(error) ?? error;
+        const result = error?.config?._errorHandler(error);
+
+        if (result === undefined) {
+          // 错误拦截器没有返回内容
+          throw error;
+        }
+        return result;
       }
     );
   }
@@ -130,7 +134,7 @@ function AxiosMix(axios: AxiosInstance, options?: Options) {
 
   function errorMixin(config: any, localErrorHandler: any, errorHandler: any) {
     config._errorHandler = function (error: any) {
-      return error;
+      throw error;
     };
   }
 
