@@ -198,7 +198,7 @@ export function beforeRequest(
     }
   }
 
-  return new Promise((resolve, reject) =>
-    executor(resolve, reject, innerInterceptorQueue.pop())
-  );
+  return new Promise((resolve, reject) => {
+    executor(resolve, reject, innerInterceptorQueue.shift());
+  });
 }

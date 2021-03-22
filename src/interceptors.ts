@@ -10,7 +10,7 @@ import {
 export type NextHook = (data: any) => void;
 
 export interface Interceptor<C> {
-  <T>(base: C, next?: NextHook, value?: any): Promise<T> | C;
+  (base: C, next?: NextHook, value?: any): Promise<C> | C | void;
 }
 
 /**
@@ -38,7 +38,7 @@ export interface ManuallyInterceptor<C> {
     base: C,
     next?: NextHook,
     value?: any
-  ): Promise<T> | C;
+  ): Promise<T> | C | void;
 }
 
 /**
@@ -356,6 +356,10 @@ export function joinCompiledInterceptorQueue(
     InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>
   >
 ): Array<InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>> {
+  if (prevQueue.length === 0) {
+    return nextQueue;
+  }
+
   let prevQueueCopy;
 
   const firstInterceptorWithCatch = searchInterceptorWithCatch(nextQueue);
