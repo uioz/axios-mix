@@ -93,7 +93,8 @@ export function beforeRequest(
       switch (currentInterceptor.interceptor.length) {
         case ManuallyInterceptorType.IS_SYNC:
           try {
-            const result = currentInterceptor.interceptor(
+            // @ts-ignore
+            const result: unknown = currentInterceptor.interceptor(
               currentInterceptor.queue,
               config
             );
@@ -110,6 +111,7 @@ export function beforeRequest(
           }
         case ManuallyInterceptorType.IS_ASYNC:
           try {
+            // @ts-ignore
             const result: unknown = currentInterceptor.interceptor(
               currentInterceptor.queue,
               config,
@@ -149,7 +151,8 @@ export function beforeRequest(
       switch (currentInterceptor.interceptor.length) {
         case InterceptorType.IS_SYNC:
           try {
-            const result = currentInterceptor.interceptor(config);
+            // @ts-ignore
+            const result: unknown = currentInterceptor.interceptor(config);
 
             if (result === undefined) {
               return executor(resolve, reject, currentInterceptor.nextHandler);
@@ -161,6 +164,7 @@ export function beforeRequest(
           }
         case InterceptorType.IS_ASYNC:
           try {
+            // @ts-ignore
             const result: unknown = currentInterceptor.interceptor(
               config,
               nextHandler

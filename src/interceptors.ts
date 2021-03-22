@@ -7,10 +7,10 @@ import {
   ManuallyInterceptorType,
 } from "./executor";
 
-export type NextHook = (data: any) => void;
+export type NextHook = (data?: any) => void;
 
 export interface Interceptor<C> {
-  (base: C, next?: NextHook, value?: any): Promise<C> | C | void;
+  (base: C, next: NextHook, value: any): Promise<C> | C | void;
 }
 
 /**
@@ -36,8 +36,8 @@ export interface ManuallyInterceptor<C> {
   interceptor<T>(
     queue: Array<InterceptorProcessed<any> | ManuallyInterceptorProcessed<any>>,
     base: C,
-    next?: NextHook,
-    value?: any
+    next: NextHook,
+    value: any
   ): Promise<T> | C | void;
 }
 
