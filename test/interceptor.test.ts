@@ -272,15 +272,15 @@ describe("axios.get with 前置异步拦截器", () => {
 
     await axios.get(TARGET_URL, {
       beforeRequest: [
-        (config, next) => {
+        (_config, next) => {
           count++;
           setTimeout(next, delay);
         },
-        (config, next) => {
+        (_config, next) => {
           count++;
           setTimeout(next, delay);
         },
-        (config, next) => {
+        (_config, next) => {
           count++;
           setTimeout(next, delay);
         },
@@ -294,9 +294,60 @@ describe("axios.get with 前置异步拦截器", () => {
   });
 });
 
-// describe("axios.get with 前置带参拦截器", () => {
+describe("axios.get with 前置带参拦截器", () => {
+  test("处理异步拦截器传入的参数", async () => {
+    const axios = AxiosMix(Axios.create());
+    const mock = new MockAdapter(axios);
+    mock.onGet(TARGET_URL).reply(200);
 
-// });
+    const anyValue = Symbol();
+
+    await axios.get(TARGET_URL, {
+      beforeRequest: [
+        (_config, next) => {
+          next(anyValue);
+        },
+        (_config, next, value) => {
+          expect(value).toStrictEqual(anyValue);
+          next();
+        },
+      ],
+    });
+  });
+
+  test("跳过队列中非带参拦截器", async () => {
+    const axios = AxiosMix(Axios.create());
+    const mock = new MockAdapter(axios);
+    mock.onGet(TARGET_URL).reply(200);
+
+    const anyValue = Symbol();
+
+    let CALL_ON_SECOND_FLAG: boolean = false;
+    let CALL_ON_THIRD_FLAG: boolean = false;
+
+    await axios.get(TARGET_URL, {
+      beforeRequest: [
+        (_config, next) => {
+          next(anyValue);
+        },
+        (_config) => {
+          CALL_ON_SECOND_FLAG = true;
+        },
+        (_config, next) => {
+          CALL_ON_THIRD_FLAG = true;
+          next();
+        },
+        (_config, next, value) => {
+          expect(value).toStrictEqual(anyValue);
+          next();
+        },
+      ],
+    });
+
+    expect(CALL_ON_SECOND_FLAG).toEqual(false);
+    expect(CALL_ON_THIRD_FLAG).toEqual(false);
+  });
+});
 
 // describe("axios.get with 前置手动拦截器", () => {
 
