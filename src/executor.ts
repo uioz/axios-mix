@@ -59,7 +59,7 @@ export function beforeRequest(
      * nextHandler only execute when have currentInterceptor
      * @returns
      */
-    function nextHandler() {
+    function nextHandler(value:unknown) {
       // 如果已经处理了返回值, 则无视钩子的调用
       if (stopNext) {
         return void 0;
