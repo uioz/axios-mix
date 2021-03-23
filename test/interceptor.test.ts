@@ -72,12 +72,12 @@ describe("axios.get with 前置同步拦截器", () => {
 
     try {
       await axios.get(TARGET_URL, {
-        beforeRequest() {
+        beforeRequest(_config) {
           throw error;
         },
       });
-    } catch (error) {
-      expect(error).toStrictEqual(error);
+    } catch (e) {
+      expect(e).toStrictEqual(error);
     }
 
     try {
@@ -86,8 +86,8 @@ describe("axios.get with 前置同步拦截器", () => {
           throw "error";
         },
       });
-    } catch (error) {
-      expect(error).toEqual("error");
+    } catch (e) {
+      expect(e).toEqual("error");
     }
   });
 
@@ -125,8 +125,8 @@ describe("axios.get with 前置同步拦截器", () => {
           return Promise.reject(error);
         },
       });
-    } catch (error) {
-      expect(error).toStrictEqual(error);
+    } catch (e) {
+      expect(e).toStrictEqual(error);
     }
   });
 });
@@ -164,8 +164,8 @@ describe("axios.get with 前置异步拦截器", () => {
           next(anyValue);
         },
       });
-    } catch (error) {
-      expect(error).toEqual(anyValue);
+    } catch (e) {
+      expect(e).toEqual(anyValue);
     }
   });
 
@@ -203,9 +203,9 @@ describe("axios.get with 前置异步拦截器", () => {
               value: { "X-TEST-ERROR": "error" },
               writable: false,
             });
-          } catch (error) {
+          } catch (e) {
             // that will cuz error while redefine property with Object.defineProperty
-            expect(error).toBeInstanceOf(Error);
+            expect(e).toBeInstanceOf(Error);
           }
 
           next();
@@ -237,8 +237,8 @@ describe("axios.get with 前置异步拦截器", () => {
           return Promise.reject("error");
         },
       });
-    } catch (error) {
-      expect(error).toEqual("error");
+    } catch (e) {
+      expect(e).toEqual("error");
     }
   });
 
@@ -256,8 +256,8 @@ describe("axios.get with 前置异步拦截器", () => {
           throw error;
         },
       });
-    } catch (error) {
-      expect(error).toStrictEqual(error);
+    } catch (e) {
+      expect(e).toStrictEqual(error);
     }
   });
 
@@ -349,6 +349,40 @@ describe("axios.get with 前置带参拦截器", () => {
   });
 });
 
-// describe("axios.get with 前置手动拦截器", () => {
+describe("axios.get with 前置手动拦截器", () => {
+  test("单个拦截器", async () => {
+    const axios = AxiosMix(Axios.create());
+    const mock = new MockAdapter(axios);
+    mock.onGet(TARGET_URL).reply(200);
 
-// });
+    await axios.get(TARGET_URL, {
+      beforeRequest: {
+        manually: true,
+        interceptor(queue, config) {
+          expect(queue).toHaveLength(0);
+        },
+      },
+    });
+  });
+
+  test("抛出错误", async () => {
+    const axios = AxiosMix(Axios.create());
+    const mock = new MockAdapter(axios);
+    mock.onGet(TARGET_URL).reply(200);
+
+    const error = new Error();
+
+    try {
+      await axios.get(TARGET_URL, {
+        beforeRequest: {
+          manually: true,
+          interceptor(_queue, _config) {
+            throw error;
+          },
+        },
+      });
+    } catch (e) {
+      expect(e).toStrictEqual(error);
+    }
+  });
+});
