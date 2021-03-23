@@ -353,16 +353,21 @@ describe("axios.get with 前置手动拦截器", () => {
   test("单个拦截器", async () => {
     const axios = AxiosMix(Axios.create());
     const mock = new MockAdapter(axios);
-    mock.onGet(TARGET_URL).reply(200);
+    const params = { "X-TEST": "test" };
+    mock.onGet(TARGET_URL, { params }).reply(200);
 
-    await axios.get(TARGET_URL, {
+    const response = await axios.get(TARGET_URL, {
       beforeRequest: {
         manually: true,
         interceptor(queue, config) {
           expect(queue).toHaveLength(0);
+          config.params = params;
+          return config;
         },
       },
     });
+
+    expect(response.config.params).toEqual(params);
   });
 
   test("抛出错误", async () => {
@@ -384,5 +389,61 @@ describe("axios.get with 前置手动拦截器", () => {
     } catch (e) {
       expect(e).toStrictEqual(error);
     }
+
+    try {
+      await axios.get(TARGET_URL, {
+        beforeRequest: {
+          manually: true,
+          interceptor(_queue, _config) {
+            throw "error";
+          },
+        },
+      });
+    } catch (e) {
+      expect(e).toStrictEqual("error");
+    }
   });
+
+  test("返回 Promise", async () => {
+    const axios = AxiosMix(Axios.create());
+    const mock = new MockAdapter(axios);
+    mock.onGet(TARGET_URL).reply(200);
+
+    const error = new Error();
+
+    try {
+      await axios.get(TARGET_URL, {
+        beforeRequest: {
+          manually: true,
+          interceptor(_queue, _config) {
+            return Promise.reject(error);
+          },
+        },
+      });
+    } catch (e) {
+      expect(e).toStrictEqual(error);
+    }
+
+    const params = { "X-TEST": "test" };
+
+    mock.onGet("/test", { params }).reply(200);
+
+    const response = await axios.get(TARGET_URL, {
+      beforeRequest: {
+        manually: true,
+        interceptor(_queue, config) {
+          return new Promise((resolve) => {
+            config.params = params;
+
+            resolve(config);
+          });
+        },
+      },
+    });
+
+    expect(response.config.params).toEqual(params);
+  });
+
+  // test("多个同步拦截器");
+  // test("异步拦截器");
 });

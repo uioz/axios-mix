@@ -38,7 +38,7 @@ export interface ManuallyInterceptor<C> {
     base: C,
     next: NextHook,
     value: any
-  ): Promise<T> | C | void;
+  ): Promise<C> | C | void;
 }
 
 /**
