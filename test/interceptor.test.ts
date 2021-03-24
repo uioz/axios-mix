@@ -138,7 +138,7 @@ describe("axios.get with 前置异步拦截器", () => {
     mock.onGet(TARGET_URL).reply(200);
 
     const startTime = Date.now();
-    const delay = 1000;
+    const delay = 100;
 
     await axios.get(TARGET_URL, {
       beforeRequest(_config, next) {
@@ -444,6 +444,156 @@ describe("axios.get with 前置手动拦截器", () => {
     expect(response.config.params).toEqual(params);
   });
 
-  // test("多个同步拦截器");
-  // test("异步拦截器");
+  test("多个拦截器", async () => {
+    const axios = AxiosMix(Axios.create());
+    const mock = new MockAdapter(axios);
+    const params = {
+      param1: "test",
+      param2: "test",
+    };
+    mock.onGet(TARGET_URL, { params }).reply(200);
+
+    let FLAG_ONE = false;
+    let FLAG_TWO = false;
+    let FLAG_THREE = false;
+    let FLAG_FOUR = false;
+
+    const response = await axios.get(TARGET_URL, {
+      beforeRequest: [
+        (_config) => {
+          FLAG_ONE = true;
+        },
+        (_config) => {
+          FLAG_TWO = true;
+        },
+        {
+          manually: true,
+          interceptor(queue, config) {
+            config.params = {
+              param1: "test",
+            };
+            expect(queue).toHaveLength(2);
+          },
+        },
+        // TODO: 考虑: 当队列中存在多个手动拦截器的时候, 手动拦截器的下个拦截器应该还是是手动拦截器
+        // 或者手动拦截器只允许存在一个
+        (_config) => {
+          FLAG_THREE = true;
+        },
+        (_config) => {
+          FLAG_FOUR = true;
+        },
+        {
+          manually: true,
+          interceptor(queue, config) {
+            config.params.param2 = "test";
+            expect(queue).toHaveLength(2);
+          },
+        },
+      ],
+    });
+
+    expect(FLAG_ONE).toEqual(false);
+    expect(FLAG_TWO).toEqual(false);
+    expect(FLAG_THREE).toEqual(true);
+    expect(FLAG_FOUR).toEqual(true);
+    expect(response.config.params).toEqual(params);
+  });
+
+  test("异步拦截器", async () => {
+    const axios = AxiosMix(Axios.create());
+    const mock = new MockAdapter(axios);
+    mock.onGet(TARGET_URL).reply(200);
+    const params = {
+      param1: "test",
+      param2: "test",
+    };
+
+    const response = await axios.get(TARGET_URL, {
+      beforeRequest: [
+        {
+          manually: true,
+          interceptor(queue, config, next) {
+            expect(queue).toHaveLength(0);
+
+            Promise.resolve().then(() => {
+              config.params = {
+                param1: "test",
+              };
+              next();
+            });
+          },
+        },
+        {
+          manually: true,
+          interceptor(queue, config, next) {
+            expect(queue).toHaveLength(0);
+
+            Promise.resolve().then(() => {
+              config.params.param2 = "test";
+              next();
+            });
+          },
+        },
+      ],
+    });
+
+    expect(response.config.params).toEqual(params);
+  });
+
+  test("异步拦截器 next 钩子携带参数但是无带参拦截器", async () => {
+    const axios = AxiosMix(Axios.create());
+    const mock = new MockAdapter(axios);
+    mock.onGet(TARGET_URL).reply(200);
+    const error = new Error();
+
+    let FLAG_ONE = false;
+    let FLAG_TWO = false;
+    try {
+      await axios.get(TARGET_URL, {
+        beforeRequest: {
+          manually: true,
+          interceptor(_queue, _config, next) {
+            FLAG_ONE = true;
+            next(error);
+          },
+        },
+      });
+      FLAG_TWO = true;
+    } catch (e) {
+      expect(e).toStrictEqual(error);
+    }
+    expect(FLAG_ONE).toEqual(true);
+    expect(FLAG_TWO).toEqual(false);
+  });
+
+  test("异步拦截器 next 钩子携带参数有带参拦截器", async () => {
+    const axios = AxiosMix(Axios.create());
+    const mock = new MockAdapter(axios);
+    mock.onGet(TARGET_URL).reply(200);
+
+    let FLAG_ONE = false;
+    const symbol = Symbol();
+
+    await axios.get(TARGET_URL, {
+      beforeRequest: [
+        {
+          manually: true,
+          interceptor(_queue, _config, next) {
+            next(symbol);
+          },
+        },
+        {
+          manually: true,
+          interceptor(_queue, _config, next, value) {
+            FLAG_ONE = true;
+            expect(value).toEqual(symbol);
+            next();
+          },
+        },
+      ],
+    });
+
+    expect(FLAG_ONE).toEqual(true);
+  });
 });
